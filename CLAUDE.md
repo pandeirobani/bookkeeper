@@ -7,6 +7,7 @@ ISBNから書誌情報を取得できる読書管理・書籍費の記録アプ�
 - バックエンド：Python / FastAPI / SQLAlchemy / Alembic / SQLite
 - 依存関係管理：uv
 - フロントエンド：React / TypeScript / Vite
+- パッケージ管理（フロントエンド）：npm
 - テスト：pytest、Vitest + Testing Library
 
 ## ディレクトリ構成
