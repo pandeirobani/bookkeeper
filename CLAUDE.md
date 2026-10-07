@@ -21,3 +21,6 @@ ISBNから書籍情報を取得するとき以外は、ローカル環境で完�
 - 外部APIを呼ぶ処理はテストでモックに差し替える
 - 実装前に作業計画を提示し、承認を得てから実装する
 - 変更は小さな単位で行う
+- コミット前に整形・静的解析を通す
+  - backend：`uv run ruff check .` / `uv run ruff format .`
+  - frontend：`npm run lint` / `npm run format`
