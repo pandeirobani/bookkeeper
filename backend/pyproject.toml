@@ -14,4 +14,21 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
+    "ruff>=0.16.10",
 ]
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+
+[tool.ruff.lint]
+# E/W: pycodestyle, F: pyflakes, I: import順, B: bugbear,
+# UP: pyupgrade, SIM: 簡略化, ANN: 型ヒント必須
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "ANN"]
+
+[tool.ruff.lint.per-file-ignores]
+# テストでは型注釈チェックを緩める
+"tests/**" = ["ANN"]
+
+[tool.ruff.format]
+quote-style = "double"
