@@ -3,7 +3,10 @@ from typing import Literal
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+from app.routers import books
+
 app = FastAPI(title="BookKeeper API")
+app.include_router(books.router)
 
 
 class HealthResponse(BaseModel):
