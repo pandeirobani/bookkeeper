@@ -1,6 +1,4 @@
-from collections.abc import Iterator
 from datetime import date
-from pathlib import Path
 
 import pytest
 from alembic import command
@@ -13,34 +11,6 @@ from sqlalchemy.orm import Session
 
 from app.database import Base
 from app.models import Book, Purchase, ReadingRecord
-
-ALEMBIC_INI = Path(__file__).resolve().parent.parent / "alembic.ini"
-
-
-def make_alembic_config(url: str) -> Config:
-    config = Config(str(ALEMBIC_INI))
-    config.set_main_option("sqlalchemy.url", url)
-    return config
-
-
-@pytest.fixture
-def db_url(tmp_path: Path) -> str:
-    return f"sqlite:///{(tmp_path / 'test.db').as_posix()}"
-
-
-@pytest.fixture
-def engine(db_url: str) -> Iterator[Engine]:
-    """マイグレーションを適用した一時DB"""
-    command.upgrade(make_alembic_config(db_url), "head")
-    engine = create_engine(db_url)
-    yield engine
-    engine.dispose()
-
-
-@pytest.fixture
-def session(engine: Engine) -> Iterator[Session]:
-    with Session(engine) as session:
-        yield session
 
 
 def add_book(session: Session, **kwargs: object) -> Book:
@@ -66,10 +36,9 @@ def test_migration_matches_models(engine: Engine):
     assert diff == []
 
 
-def test_migration_downgrade_drops_tables(db_url: str):
-    config = make_alembic_config(db_url)
-    command.upgrade(config, "head")
-    command.downgrade(config, "base")
+def test_migration_downgrade_drops_tables(db_url: str, alembic_config: Config):
+    command.upgrade(alembic_config, "head")
+    command.downgrade(alembic_config, "base")
 
     engine = create_engine(db_url)
     table_names = set(inspect(engine).get_table_names())

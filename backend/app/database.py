@@ -1,10 +1,11 @@
 import os
 import sqlite3
+from collections.abc import Iterator
 from pathlib import Path
 
 from sqlalchemy import Engine, MetaData, Text, create_engine, event
 from sqlalchemy.engine.interfaces import DBAPIConnection
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.pool import ConnectionPoolEntry
 
 DEFAULT_DATABASE_PATH = Path(__file__).resolve().parent.parent / "bookkeeper.db"
@@ -42,3 +43,9 @@ def _enable_sqlite_foreign_keys(
 
 engine = create_engine(get_database_url())
 SessionLocal = sessionmaker(bind=engine)
+
+
+def get_session() -> Iterator[Session]:
+    """APIのリクエストごとにセッションを開き、終わったら閉じる（FastAPIの依存関数）"""
+    with SessionLocal() as session:
+        yield session
