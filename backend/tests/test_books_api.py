@@ -24,6 +24,8 @@ def client(engine: Engine) -> Iterator[TestClient]:
     app.dependency_overrides.clear()
 
 
+# ===== 登録 POST /api/books =====
+
 # --- 正常系 ---
 
 
@@ -188,7 +190,9 @@ def test_invalid_isbn_error_message_is_returned(client: TestClient):
     assert "番号に入力ミスがないか確認してください" in error["msg"]
 
 
-# --- 一覧取得 ---
+# ===== 一覧取得 GET /api/books =====
+
+# --- 正常系 ---
 
 
 def test_list_books_returns_empty_list_when_no_books(client: TestClient):
@@ -227,6 +231,9 @@ def test_list_books_includes_books_without_isbn(client: TestClient):
     assert titles == {"ISBNなし1", "ISBNなし2"}
 
 
+# --- 並び順 ---
+
+
 def test_list_books_orders_by_created_at_desc(client: TestClient, session: Session):
     # id の順と登録日時の順をわざと逆にする
     session.add_all(
@@ -260,7 +267,9 @@ def test_list_books_with_same_created_at_orders_by_id_desc(
     assert titles == ["3冊目", "2冊目", "1冊目"]
 
 
-# --- 1件取得 ---
+# ===== 1件取得 GET /api/books/{book_id} =====
+
+# --- 正常系 ---
 
 
 def test_get_book_returns_created_book(client: TestClient):
@@ -292,6 +301,9 @@ def test_get_book_returns_only_specified_book(client: TestClient):
 
     assert response.status_code == 200
     assert response.json() == second
+
+
+# --- エラー ---
 
 
 def test_get_book_not_found_returns_404(client: TestClient):
