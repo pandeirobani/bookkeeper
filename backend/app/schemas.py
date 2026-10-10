@@ -1,10 +1,18 @@
 """APIの入出力スキーマ"""
 
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.isbn import normalize_isbn
+
+
+def _blank_to_none(value: str | None) -> str | None:
+    """前後の空白を取り除き、空文字はNULLにする"""
+    if value is None:
+        return None
+    value = value.strip()
+    return value or None
 
 
 class BookCreate(BaseModel):
@@ -34,11 +42,8 @@ class BookCreate(BaseModel):
 
     @field_validator("author", "publisher", "published_date", "cover_image_url")
     @classmethod
-    def _blank_to_none(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        value = value.strip()
-        return value or None
+    def _normalize_blank(cls, value: str | None) -> str | None:
+        return _blank_to_none(value)
 
 
 class BookResponse(BaseModel):
@@ -54,4 +59,32 @@ class BookResponse(BaseModel):
     published_date: str | None
     list_price: int | None
     cover_image_url: str | None
+    created_at: datetime
+
+
+class PurchaseCreate(BaseModel):
+    """購入記録の追加・更新のリクエスト"""
+
+    purchased_on: date
+    amount: int = Field(ge=0)
+    store: str | None = None
+    memo: str | None = None
+
+    @field_validator("store", "memo")
+    @classmethod
+    def _normalize_blank(cls, value: str | None) -> str | None:
+        return _blank_to_none(value)
+
+
+class PurchaseResponse(BaseModel):
+    """購入記録のレスポンス"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    book_id: int
+    purchased_on: date
+    amount: int
+    store: str | None
+    memo: str | None
     created_at: datetime

@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/books", tags=["books"])
 SessionDep = Annotated[Session, Depends(get_session)]
 
 
-def _get_book_or_404(session: Session, book_id: int) -> Book:
+def get_book_or_404(session: Session, book_id: int) -> Book:
     book = session.get(Book, book_id)
     if book is None:
         raise HTTPException(
@@ -52,7 +52,7 @@ def list_books(session: SessionDep) -> list[BookResponse]:
 @router.get("/{book_id}")
 def get_book(book_id: int, session: SessionDep) -> BookResponse:
     """書籍を1件返す"""
-    return BookResponse.model_validate(_get_book_or_404(session, book_id))
+    return BookResponse.model_validate(get_book_or_404(session, book_id))
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -72,7 +72,7 @@ def create_book(payload: BookCreate, session: SessionDep) -> BookResponse:
 @router.put("/{book_id}")
 def update_book(book_id: int, payload: BookCreate, session: SessionDep) -> BookResponse:
     """書籍の書誌情報を置き換える。送られなかった任意項目はNULLになる。読書記録は変えない"""
-    book = _get_book_or_404(session, book_id)
+    book = get_book_or_404(session, book_id)
     _ensure_isbn_available(session, payload.isbn, exclude_book_id=book_id)
 
     for field, value in payload.model_dump().items():
@@ -85,6 +85,6 @@ def update_book(book_id: int, payload: BookCreate, session: SessionDep) -> BookR
 @router.delete("/{book_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_book(book_id: int, session: SessionDep) -> None:
     """書籍を削除する。読書記録と購入記録もDBのCASCADEで一緒に削除される"""
-    book = _get_book_or_404(session, book_id)
+    book = get_book_or_404(session, book_id)
     session.delete(book)
     session.commit()
