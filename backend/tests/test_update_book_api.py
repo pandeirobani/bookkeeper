@@ -1,5 +1,7 @@
 """書籍更新API PUT /api/books/{book_id} のテスト"""
 
+from datetime import date
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
@@ -100,6 +102,20 @@ def test_update_book_does_not_change_reading_record(
     session.refresh(record)
     assert record.status == "reading"
     assert record.memo == "読書メモ"
+
+
+def test_update_book_does_not_change_disposed_on(client: TestClient, session: Session):
+    # 手放した日は書誌情報ではないので、書誌情報の更新では変えない
+    created = create_book(client)
+    book = session.get(Book, created["id"])
+    assert book is not None
+    book.disposed_on = date(2026, 10, 10)
+    session.commit()
+
+    client.put(f"/api/books/{created['id']}", json=ALL_FIELDS)
+
+    session.refresh(book)
+    assert book.disposed_on == date(2026, 10, 10)
 
 
 # --- 入力値の正規化 ---

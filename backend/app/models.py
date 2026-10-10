@@ -29,6 +29,8 @@ class Book(Base):
     # 定価（税込・円）。書籍費の集計には使わない
     list_price: Mapped[int | None]
     cover_image_url: Mapped[str | None]
+    # 手放した日（売った・譲った・捨てたなど）。手元にある本はNULL
+    disposed_on: Mapped[date | None]
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.current_timestamp()
     )
@@ -44,9 +46,9 @@ class Purchase(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    # 購入記録がある本は削除できない
+    # 本を削除すると購入記録も一緒に削除する
     book_id: Mapped[int] = mapped_column(
-        ForeignKey("books.id", ondelete="RESTRICT"), index=True
+        ForeignKey("books.id", ondelete="CASCADE"), index=True
     )
     purchased_on: Mapped[date] = mapped_column(index=True)
     # 実際に支払った金額（税込・円）
@@ -69,7 +71,10 @@ class ReadingRecord(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    book_id: Mapped[int] = mapped_column(ForeignKey("books.id"), unique=True)
+    # 本を削除すると読書記録も一緒に削除する
+    book_id: Mapped[int] = mapped_column(
+        ForeignKey("books.id", ondelete="CASCADE"), unique=True
+    )
     status: Mapped[str]
     started_at: Mapped[date | None]
     finished_at: Mapped[date | None]

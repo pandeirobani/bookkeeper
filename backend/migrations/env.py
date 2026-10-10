@@ -61,6 +61,12 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        # テーブル再作成方式では DROP TABLE が全行の削除として扱われる。
+        # 外部キーが有効だと、子テーブルの行が CASCADE で消えたりエラーになったりする。
+        # そのためマイグレーション中は外部キーを無効にする
+        connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+        # 自動で始まったトランザクションを閉じ、コミットを Alembic に任せる
+        connection.commit()
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
@@ -70,6 +76,13 @@ def run_migrations_online() -> None:
 
         with context.begin_transaction():
             context.run_migrations()
+
+        # 無効にしている間に、参照先のない行ができていないか確かめる
+        violations = connection.exec_driver_sql("PRAGMA foreign_key_check").all()
+        if violations:
+            raise RuntimeError(f"外部キー制約に違反する行があります: {violations}")
+        connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+        connection.commit()
 
 
 if context.is_offline_mode():
