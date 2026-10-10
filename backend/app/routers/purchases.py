@@ -59,3 +59,11 @@ def update_purchase(
     session.commit()
 
     return PurchaseResponse.model_validate(purchase)
+
+
+@router.delete("/purchases/{purchase_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_purchase(purchase_id: int, session: SessionDep) -> None:
+    """購入記録を削除する。本は残る"""
+    purchase = _get_purchase_or_404(session, purchase_id)
+    session.delete(purchase)
+    session.commit()
