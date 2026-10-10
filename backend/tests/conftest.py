@@ -4,8 +4,12 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session
+
+from app.database import get_session
+from app.main import app
 
 ALEMBIC_INI = Path(__file__).resolve().parent.parent / "alembic.ini"
 
@@ -36,3 +40,16 @@ def engine(db_url: str, alembic_config: Config) -> Iterator[Engine]:
 def session(engine: Engine) -> Iterator[Session]:
     with Session(engine) as session:
         yield session
+
+
+@pytest.fixture
+def client(engine: Engine) -> Iterator[TestClient]:
+    """DBを一時DBに差し替えたテストクライアント"""
+
+    def override_get_session() -> Iterator[Session]:
+        with Session(engine) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+    yield TestClient(app)
+    app.dependency_overrides.clear()
