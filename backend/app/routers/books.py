@@ -23,6 +23,18 @@ def list_books(session: SessionDep) -> list[BookResponse]:
     return [BookResponse.model_validate(book) for book in books]
 
 
+@router.get("/{book_id}")
+def get_book(book_id: int, session: SessionDep) -> BookResponse:
+    """書籍を1件返す"""
+    book = session.get(Book, book_id)
+    if book is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"ID {book_id} の本は見つかりません",
+        )
+    return BookResponse.model_validate(book)
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_book(payload: BookCreate, session: SessionDep) -> BookResponse:
     """書籍を登録する。読書記録も「未読」で同時に作成する"""
