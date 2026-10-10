@@ -13,6 +13,16 @@ router = APIRouter(prefix="/api/books", tags=["books"])
 SessionDep = Annotated[Session, Depends(get_session)]
 
 
+@router.get("")
+def list_books(session: SessionDep) -> list[BookResponse]:
+    """書籍を新しく登録した順に全件返す"""
+    # created_at は秒単位なので、同じ秒に登録した本の順番は id で決める
+    books = session.scalars(
+        select(Book).order_by(Book.created_at.desc(), Book.id.desc())
+    )
+    return [BookResponse.model_validate(book) for book in books]
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_book(payload: BookCreate, session: SessionDep) -> BookResponse:
     """書籍を登録する。読書記録も「未読」で同時に作成する"""
