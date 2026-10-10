@@ -80,3 +80,11 @@ def update_book(book_id: int, payload: BookCreate, session: SessionDep) -> BookR
     session.commit()
 
     return BookResponse.model_validate(book)
+
+
+@router.delete("/{book_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_book(book_id: int, session: SessionDep) -> None:
+    """書籍を削除する。読書記録と購入記録もDBのCASCADEで一緒に削除される"""
+    book = _get_book_or_404(session, book_id)
+    session.delete(book)
+    session.commit()
