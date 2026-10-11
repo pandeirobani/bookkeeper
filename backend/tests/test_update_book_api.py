@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Book, ReadingRecord
+from app.routers import books as books_router
 
 # 同じ本を ISBN-13 と ISBN-10 で表した値
 ISBN13 = "9784003101018"
@@ -192,6 +193,27 @@ def test_isbn10_of_another_book_is_detected_as_duplicate(client: TestClient):
     )
 
     assert response.status_code == 409
+
+
+def test_duplicate_isbn_missed_by_check_returns_409(
+    client: TestClient, session: Session, monkeypatch: pytest.MonkeyPatch
+):
+    # 重複チェックの後に別のリクエストが同じISBNを登録した場合を、
+    # チェックが重複を見逃す形で再現する。DBのUNIQUE制約の違反を500にしない
+    create_book(client, isbn=ISBN13)
+    target = create_book(client, isbn=OTHER_ISBN13)
+    monkeypatch.setattr(books_router, "_ensure_isbn_available", lambda *_, **__: None)
+
+    response = client.put(
+        f"/api/books/{target['id']}", json={"isbn": ISBN13, "title": "別の書名"}
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == f"ISBN {ISBN13} の本はすでに登録されています"
+    book = session.get(Book, target["id"])
+    assert book is not None
+    assert book.isbn == OTHER_ISBN13
+    assert book.title == "更新前の書名"
 
 
 # --- エラー ---

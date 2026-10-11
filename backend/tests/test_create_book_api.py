@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Book, ReadingRecord
+from app.routers import books as books_router
 
 # 同じ本を ISBN-13 と ISBN-10 で表した値
 ISBN13 = "9784003101018"
@@ -165,6 +166,22 @@ def test_same_book_as_isbn10_is_detected_as_duplicate(client: TestClient):
     response = client.post("/api/books", json={"isbn": ISBN10, "title": "2冊目"})
 
     assert response.status_code == 409
+
+
+def test_duplicate_isbn_missed_by_check_returns_409(
+    client: TestClient, session: Session, monkeypatch: pytest.MonkeyPatch
+):
+    # 重複チェックの後に別のリクエストが同じISBNを登録した場合を、
+    # チェックが重複を見逃す形で再現する。DBのUNIQUE制約の違反を500にしない
+    client.post("/api/books", json={"isbn": ISBN13, "title": "1冊目"})
+    monkeypatch.setattr(books_router, "_ensure_isbn_available", lambda *_, **__: None)
+
+    response = client.post("/api/books", json={"isbn": ISBN13, "title": "2冊目"})
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == f"ISBN {ISBN13} の本はすでに登録されています"
+    assert session.query(Book).count() == 1
+    assert session.query(ReadingRecord).count() == 1
 
 
 # --- 入力エラー ---

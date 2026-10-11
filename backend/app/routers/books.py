@@ -1,7 +1,10 @@
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_session
@@ -15,6 +18,10 @@ SessionDep = Annotated[Session, Depends(get_session)]
 # SQLiteの整数の最大値。これを超えるIDでDBを検索すると500になるので、422にする
 SQLITE_MAX_INTEGER = 2**63 - 1
 IdPath = Annotated[int, Path(le=SQLITE_MAX_INTEGER)]
+
+# books.isbn のUNIQUE制約に違反したときのSQLiteのエラー文
+# （例: "UNIQUE constraint failed: books.isbn"）に含まれる列名
+_ISBN_UNIQUE_COLUMN = "books.isbn"
 
 
 def get_book_or_404(session: Session, book_id: int) -> Book:
@@ -37,10 +44,31 @@ def _ensure_isbn_available(
     if exclude_book_id is not None:
         query = query.where(Book.id != exclude_book_id)
     if session.scalar(query) is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"ISBN {isbn} の本はすでに登録されています",
-        )
+        raise _isbn_conflict(isbn)
+
+
+def _isbn_conflict(isbn: str | None) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=f"ISBN {isbn} の本はすでに登録されています",
+    )
+
+
+@contextmanager
+def _isbn_conflict_as_409(session: Session, isbn: str | None) -> Iterator[None]:
+    """書き込み中のISBNのUNIQUE制約の違反を409にする。
+
+    _ensure_isbn_available の後に、別のリクエストが同じISBNを登録した場合
+    （登録ボタンを2回押したなど）の安全網。それ以外の IntegrityError は
+    想定外なので、409で隠さずにそのまま送出する
+    """
+    try:
+        yield
+    except IntegrityError as error:
+        session.rollback()
+        if _ISBN_UNIQUE_COLUMN in str(error.orig):
+            raise _isbn_conflict(isbn) from error
+        raise
 
 
 @router.get("")
@@ -65,10 +93,12 @@ def create_book(payload: BookCreate, session: SessionDep) -> BookResponse:
     _ensure_isbn_available(session, payload.isbn)
 
     book = Book(**payload.model_dump())
-    session.add(book)
-    session.flush()  # book.id を確定させる
-    session.add(ReadingRecord(book_id=book.id, status="unread"))
-    session.commit()
+    # 重複したISBNのINSERTは、commit より前の flush で失敗する
+    with _isbn_conflict_as_409(session, payload.isbn):
+        session.add(book)
+        session.flush()  # book.id を確定させる
+        session.add(ReadingRecord(book_id=book.id, status="unread"))
+        session.commit()
 
     return BookResponse.model_validate(book)
 
@@ -83,7 +113,8 @@ def update_book(
 
     for field, value in payload.model_dump().items():
         setattr(book, field, value)
-    session.commit()
+    with _isbn_conflict_as_409(session, payload.isbn):
+        session.commit()
 
     return BookResponse.model_validate(book)
 
