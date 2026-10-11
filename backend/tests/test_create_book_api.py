@@ -50,6 +50,15 @@ def test_create_book_with_title_only(client: TestClient):
     assert body["list_price"] is None
 
 
+def test_list_price_at_upper_limit_is_allowed(client: TestClient):
+    response = client.post(
+        "/api/books", json={"title": "テスト書籍", "list_price": 10_000_000}
+    )
+
+    assert response.status_code == 201
+    assert response.json()["list_price"] == 10_000_000
+
+
 def test_create_book_saves_to_db(client: TestClient, session: Session):
     response = client.post("/api/books", json={"title": "テスト書籍"})
 
@@ -147,6 +156,8 @@ def test_same_book_as_isbn10_is_detected_as_duplicate(client: TestClient):
         {"title": ""},
         {"title": "   "},
         {"title": "テスト書籍", "list_price": -1},
+        {"title": "テスト書籍", "list_price": 10_000_001},  # 上限超え
+        {"title": "テスト書籍", "list_price": 10**20},  # SQLiteの整数の範囲外
         {"title": "テスト書籍", "isbn": "9784003101019"},  # チェックディジット違い
         {"title": "テスト書籍", "isbn": "abc"},
         {"title": "テスト書籍", "auther": "著者A"},  # 項目名の打ち間違い

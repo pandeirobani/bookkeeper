@@ -208,6 +208,8 @@ def test_update_book_with_non_integer_id_returns_422(client: TestClient):
         {"title": ""},
         {"title": "   "},
         {"title": "テスト書籍", "list_price": -1},
+        {"title": "テスト書籍", "list_price": 10_000_001},  # 上限超え
+        {"title": "テスト書籍", "list_price": 10**20},  # SQLiteの整数の範囲外
         {"title": "テスト書籍", "isbn": "9784003101019"},  # チェックディジット違い
         {"title": "テスト書籍", "isbn": "abc"},
         {"title": "テスト書籍", "auther": "著者A"},  # 項目名の打ち間違い

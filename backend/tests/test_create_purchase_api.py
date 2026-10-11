@@ -87,6 +87,18 @@ def test_amount_zero_is_allowed(client: TestClient):
     assert response.status_code == 201
 
 
+def test_amount_at_upper_limit_is_allowed(client: TestClient):
+    book_id = create_book(client)
+
+    response = client.post(
+        f"/api/books/{book_id}/purchases",
+        json={"purchased_on": "2026-10-01", "amount": 10_000_000},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["amount"] == 10_000_000
+
+
 def test_future_purchased_on_is_allowed(client: TestClient):
     # 予約購入もあるので未来の日付も受け付ける
     book_id = create_book(client)
@@ -164,6 +176,8 @@ def test_create_purchase_for_unknown_book_returns_404(
         {"amount": 1980},  # purchased_on なし
         {"purchased_on": "2026-10-01"},  # amount なし
         {"purchased_on": "2026-10-01", "amount": -1},
+        {"purchased_on": "2026-10-01", "amount": 10_000_001},  # 上限超え
+        {"purchased_on": "2026-10-01", "amount": 10**20},  # SQLiteの整数の範囲外
         {"purchased_on": "2026-10-01", "amount": 19.8},
         {"purchased_on": "2026-13-01", "amount": 1980},
         {"purchased_on": "", "amount": 1980},

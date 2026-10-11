@@ -11,6 +11,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from app.isbn import normalize_isbn
 
+# 金額（円）の上限。SQLiteの整数の範囲を超えて500になるのを防ぐため、
+# 高価な古書なども記録できる程度に余裕を持たせて決めた
+MAX_PRICE = 10_000_000
+
 
 def _blank_to_none(value: str | None) -> str | None:
     """前後の空白を取り除き、空文字はNULLにする"""
@@ -30,7 +34,7 @@ class BookCreate(BaseModel):
     author: str | None = None
     publisher: str | None = None
     published_date: str | None = None
-    list_price: int | None = Field(default=None, ge=0)
+    list_price: int | None = Field(default=None, ge=0, le=MAX_PRICE)
     cover_image_url: str | None = None
 
     @field_validator("isbn")
@@ -85,7 +89,7 @@ class PurchaseCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     purchased_on: date
-    amount: int = Field(ge=0)
+    amount: int = Field(ge=0, le=MAX_PRICE)
     store: str | None = None
     memo: str | None = None
 

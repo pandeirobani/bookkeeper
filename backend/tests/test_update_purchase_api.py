@@ -140,6 +140,8 @@ def test_update_unknown_purchase_returns_404(client: TestClient):
         {"amount": 2200},  # purchased_on なし
         {"purchased_on": "2026-10-05"},  # amount なし
         {"purchased_on": "2026-10-05", "amount": -1},
+        {"purchased_on": "2026-10-05", "amount": 10_000_001},  # 上限超え
+        {"purchased_on": "2026-10-05", "amount": 10**20},  # SQLiteの整数の範囲外
         {"purchased_on": "2026-13-01", "amount": 2200},
         # 項目名の打ち間違い
         {"purchased_on": "2026-10-05", "amount": 2200, "stor": "テスト書店"},
