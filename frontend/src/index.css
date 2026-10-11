@@ -8,6 +8,9 @@
   --bg: #fff;
   --border: #e5e4e7;
   --accent: #2f6fdb;
+  /* ボタンの背景。白い文字を載せるので、リンクの色（--accent）より濃くする */
+  --button-bg: #1d5bbf;
+  --danger-button-bg: #c4231c;
   --error: #c4231c;
   --error-bg: #fdf0ef;
   --success: #2e8540;
@@ -30,6 +33,9 @@
     --bg: #16171d;
     --border: #2e303a;
     --accent: #7aa7f5;
+    /* --accent はダークモードでは明るくするので、ボタンには使わない */
+    --button-bg: #2f6fdb;
+    --danger-button-bg: #c4231c;
     --error: #ff8a80;
     --error-bg: #3a1d1d;
     --success: #6cc581;
