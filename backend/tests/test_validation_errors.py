@@ -74,8 +74,7 @@ def create_book(client: TestClient) -> int:
             {"title": "テスト書籍", "isbn": "9784003101019"},
             "value_error",
             ["body", "isbn"],
-            "ISBNが正しくありません。番号に入力ミスがないか確認してください: "
-            "9784003101019",
+            "ISBNが正しくありません。番号に入力ミスがないか確認してください",
         ),
         (
             {"title": "あ" * 201},
@@ -230,6 +229,17 @@ def test_other_fields_of_error_are_kept(client: TestClient):
     [error] = response.json()["detail"]
     assert error["input"] == -1
     assert error["ctx"] == {"ge": 0}
+
+
+def test_invalid_isbn_input_is_returned_as_entered(client: TestClient):
+    # メッセージには入力値を入れないので、画面で必要なら input から取る
+    response = client.post(
+        "/api/books", json={"title": "テスト書籍", "isbn": "978-4-00-310101-9"}
+    )
+
+    [error] = response.json()["detail"]
+    assert error["input"] == "978-4-00-310101-9"
+    assert "978-4-00-310101-9" not in error["msg"]
 
 
 # --- 対応表にないエラー（関数を直接呼んで確認） ---

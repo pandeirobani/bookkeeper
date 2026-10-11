@@ -34,16 +34,16 @@ def normalize_isbn(value: str | None) -> str | None:
 
     if _ISBN13.fullmatch(isbn):
         if _isbn13_check_digit(isbn[:12]) != isbn[12]:
-            raise InvalidIsbnError(f"{_ERROR_MESSAGE}: {value}")
+            raise InvalidIsbnError(_ERROR_MESSAGE)
         return isbn
 
     if _ISBN10.fullmatch(isbn):
         if _isbn10_check_digit(isbn[:9]) != isbn[9]:
-            raise InvalidIsbnError(f"{_ERROR_MESSAGE}: {value}")
+            raise InvalidIsbnError(_ERROR_MESSAGE)
         body = "978" + isbn[:9]
         return body + _isbn13_check_digit(body)
 
-    raise InvalidIsbnError(f"{_ERROR_MESSAGE}: {value}")
+    raise InvalidIsbnError(_ERROR_MESSAGE)
 
 
 def _isbn13_check_digit(first12: str) -> str:

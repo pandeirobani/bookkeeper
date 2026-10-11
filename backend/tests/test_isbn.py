@@ -53,11 +53,12 @@ def test_invalid_isbn_raises_error(value: str):
         "abc",  # 形式違い
     ],
 )
-def test_error_message_is_user_friendly_and_includes_input(value: str):
+def test_error_message_is_user_friendly(value: str):
     with pytest.raises(InvalidIsbnError) as exc_info:
         normalize_isbn(value)
 
     message = str(exc_info.value)
-    assert "番号に入力ミスがないか確認してください" in message
+    assert message == "ISBNが正しくありません。番号に入力ミスがないか確認してください"
     assert "チェックディジット" not in message
-    assert value in message  # 入力したままの形で表示する
+    # 入力値は画面の入力欄に見えており、422のレスポンスの input にも含まれるので入れない
+    assert value not in message
