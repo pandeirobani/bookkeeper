@@ -59,6 +59,7 @@ class BookResponse(BaseModel):
     published_date: str | None
     list_price: int | None
     cover_image_url: str | None
+    disposed_on: date | None
     created_at: datetime
 
 

@@ -36,9 +36,10 @@ def test_update_book_replaces_all_fields(client: TestClient):
 
     assert response.status_code == 200
     body = response.json()
-    assert {k: v for k, v in body.items() if k not in ("id", "created_at")} == (
-        ALL_FIELDS
-    )
+    assert {k: v for k, v in body.items() if k not in ("id", "created_at")} == {
+        **ALL_FIELDS,
+        "disposed_on": None,
+    }
 
 
 def test_update_book_saves_to_db(client: TestClient, session: Session):

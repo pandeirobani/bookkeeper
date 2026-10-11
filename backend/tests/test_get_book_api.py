@@ -1,6 +1,11 @@
 """書籍1件取得API GET /api/books/{book_id} のテスト"""
 
+from datetime import date
+
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
+
+from app.models import Book
 
 # --- 正常系 ---
 
@@ -34,6 +39,26 @@ def test_get_book_returns_only_specified_book(client: TestClient):
 
     assert response.status_code == 200
     assert response.json() == second
+
+
+def test_get_book_returns_null_disposed_on_for_book_at_hand(client: TestClient):
+    created = client.post("/api/books", json={"title": "手元にある本"}).json()
+
+    response = client.get(f"/api/books/{created['id']}")
+
+    assert response.json()["disposed_on"] is None
+
+
+def test_get_book_returns_disposed_on(client: TestClient, session: Session):
+    created = client.post("/api/books", json={"title": "手放した本"}).json()
+    book = session.get(Book, created["id"])
+    assert book is not None
+    book.disposed_on = date(2026, 10, 10)
+    session.commit()
+
+    response = client.get(f"/api/books/{created['id']}")
+
+    assert response.json()["disposed_on"] == "2026-10-10"
 
 
 # --- エラー ---

@@ -36,6 +36,7 @@ def test_create_book_with_all_fields(client: TestClient):
         "published_date": "2024-05",
         "list_price": 1980,
         "cover_image_url": "https://example.com/cover.jpg",
+        "disposed_on": None,
     }
 
 

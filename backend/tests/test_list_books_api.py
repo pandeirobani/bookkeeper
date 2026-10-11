@@ -1,6 +1,6 @@
 """書籍一覧取得API GET /api/books のテスト"""
 
-from datetime import datetime
+from datetime import date, datetime
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -44,6 +44,23 @@ def test_list_books_includes_books_without_isbn(client: TestClient):
     titles = {book["title"] for book in client.get("/api/books").json()}
 
     assert titles == {"ISBNなし1", "ISBNなし2"}
+
+
+def test_list_books_includes_disposed_books(client: TestClient, session: Session):
+    # 手放した本も一覧から消さず、disposed_on 付きで返す
+    session.add_all(
+        [
+            Book(title="手元にある本"),
+            Book(title="手放した本", disposed_on=date(2026, 10, 10)),
+        ]
+    )
+    session.commit()
+
+    disposed_on_by_title = {
+        book["title"]: book["disposed_on"] for book in client.get("/api/books").json()
+    }
+
+    assert disposed_on_by_title == {"手元にある本": None, "手放した本": "2026-10-10"}
 
 
 # --- 並び順 ---
