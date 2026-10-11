@@ -38,3 +38,13 @@
   color: var(--text-h);
   text-align: right;
 }
+
+.formArea {
+  margin-top: 16px;
+}
+
+.formHeading {
+  margin: 0 0 12px;
+  color: var(--text-h);
+  font-size: 16px;
+}

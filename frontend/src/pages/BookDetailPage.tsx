@@ -69,7 +69,7 @@ function BookDetail({ bookId }: { bookId: number }) {
         </div>
       </div>
       <ReadingRecordSection bookId={bookId} />
-      <PurchasesSection book={book.data} purchases={purchases} />
+      <PurchasesSection book={book.data} purchases={purchases} onBookChanged={book.reload} />
       <DisposalSection book={book.data} onChanged={book.reload} />
       <DeleteSection book={book.data} purchases={purchases} />
     </>
