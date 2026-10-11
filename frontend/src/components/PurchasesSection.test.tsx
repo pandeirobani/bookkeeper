@@ -3,13 +3,14 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Book } from "../api/books.ts";
 import { ApiError } from "../api/client.ts";
-import { type Purchase, createPurchase } from "../api/purchases.ts";
+import { type Purchase, createPurchase, updatePurchase } from "../api/purchases.ts";
 import type { ApiData, ApiDataState } from "../hooks/useApiData.ts";
 import { makeBook, makePurchase } from "../test/fixtures.ts";
 import PurchasesSection from "./PurchasesSection.tsx";
 
 vi.mock("../api/purchases.ts", () => ({
   createPurchase: vi.fn(),
+  updatePurchase: vi.fn(),
 }));
 
 const NO_PURCHASES: ApiDataState<Purchase[]> = { status: "success", data: [] };
@@ -24,12 +25,14 @@ function renderSection(
   return { purchases, onBookChanged, user: userEvent.setup() };
 }
 
-/** 表の本文の行を、セルの文字の配列にする */
+/** 表の本文の行を、セルの文字の配列にする。最後の操作の列は含めない */
 function bodyRows(): string[][] {
   const [, body] = within(screen.getByRole("table", { name: "購入記録" })).getAllByRole("rowgroup");
   return within(body)
     .getAllByRole("row")
-    .map((row) => Array.from(row.querySelectorAll("td"), (cell) => cell.textContent ?? ""));
+    .map((row) =>
+      Array.from(row.querySelectorAll("td"), (cell) => cell.textContent ?? "").slice(0, 4),
+    );
 }
 
 describe("PurchasesSection", () => {
@@ -186,6 +189,89 @@ describe("PurchasesSection", () => {
 
       expect(screen.getByRole("button", { name: "購入記録を追加" })).toBeInTheDocument();
       expect(createPurchase).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("編集", () => {
+    const PURCHASES: ApiDataState<Purchase[]> = {
+      status: "success",
+      data: [
+        makePurchase({ id: 2, purchased_on: "2026-10-05", amount: 550, store: null }),
+        makePurchase({ id: 1, purchased_on: "2026-10-01", amount: 1078, store: "テスト書店" }),
+      ],
+    };
+
+    afterEach(() => {
+      vi.mocked(updatePurchase).mockReset();
+    });
+
+    it("行の「編集」で、その購入記録の値を入れたフォームを開く", async () => {
+      const { user } = renderSection(PURCHASES);
+
+      await user.click(screen.getByRole("button", { name: "2026/10/01 の購入記録を編集" }));
+
+      expect(
+        screen.getByRole("heading", { name: "購入記録を編集（2026/10/01 の購入）" }),
+      ).toBeVisible();
+      expect(screen.getByLabelText(/購入日/)).toHaveValue("2026-10-01");
+      expect(screen.getByLabelText(/金額/)).toHaveValue("1078");
+      expect(screen.getByLabelText("購入店")).toHaveValue("テスト書店");
+      // 開けるフォームは1つだけなので、追加のボタンは隠す
+      expect(screen.queryByRole("button", { name: "購入記録を追加" })).not.toBeInTheDocument();
+    });
+
+    it("変更した値を送り、フォームを閉じて購入記録を取り直す", async () => {
+      vi.mocked(updatePurchase).mockResolvedValue(makePurchase());
+      const { user, purchases, onBookChanged } = renderSection(PURCHASES);
+
+      await user.click(screen.getByRole("button", { name: "2026/10/01 の購入記録を編集" }));
+      const amount = screen.getByLabelText(/金額/);
+      await user.clear(amount);
+      await user.type(amount, "980");
+      await user.click(screen.getByRole("button", { name: "保存する" }));
+
+      expect(updatePurchase).toHaveBeenCalledWith(1, {
+        purchased_on: "2026-10-01",
+        amount: 980,
+        store: "テスト書店",
+        memo: "",
+      });
+      expect(await screen.findByRole("status")).toHaveTextContent("購入記録を更新しました");
+      expect(screen.queryByRole("button", { name: "保存する" })).not.toBeInTheDocument();
+      expect(purchases.reload).toHaveBeenCalledTimes(1);
+      // 更新では手放した日は変わらないので、本は取り直さない
+      expect(onBookChanged).not.toHaveBeenCalled();
+    });
+
+    it("別の行の「編集」に切り替えたら、その購入記録の値を入れ直す", async () => {
+      const { user } = renderSection(PURCHASES);
+
+      await user.click(screen.getByRole("button", { name: "2026/10/01 の購入記録を編集" }));
+      await user.type(screen.getByLabelText("購入店"), "（入力中）");
+      await user.click(screen.getByRole("button", { name: "2026/10/05 の購入記録を編集" }));
+
+      expect(screen.getByLabelText(/購入日/)).toHaveValue("2026-10-05");
+      expect(screen.getByLabelText("購入店")).toHaveValue("");
+    });
+
+    it("入力エラーは入力欄の下に表示し、フォームを開いたままにする", async () => {
+      vi.mocked(updatePurchase).mockRejectedValue(
+        new ApiError(422, [
+          {
+            type: "less_than_equal",
+            loc: ["body", "amount"],
+            msg: "金額は10000000以下で入力してください",
+          },
+        ]),
+      );
+      const { user, purchases } = renderSection(PURCHASES);
+
+      await user.click(screen.getByRole("button", { name: "2026/10/01 の購入記録を編集" }));
+      await user.click(screen.getByRole("button", { name: "保存する" }));
+
+      expect(await screen.findByText("金額は10000000以下で入力してください")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "保存する" })).toBeEnabled();
+      expect(purchases.reload).not.toHaveBeenCalled();
     });
   });
 });
