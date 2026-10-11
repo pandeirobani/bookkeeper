@@ -71,7 +71,13 @@ def test_get_book_not_found_returns_404(client: TestClient):
     response = client.get("/api/books/999")
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "ID 999 の本は見つかりません"
+    assert response.json()["detail"] == [
+        {
+            "type": "not_found",
+            "loc": ["path", "book_id"],
+            "msg": "ID 999 の本は見つかりません",
+        }
+    ]
 
 
 def test_get_book_with_non_integer_id_returns_422(client: TestClient):

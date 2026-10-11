@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.errors import api_error
 from app.models import ReadingRecord
 from app.routers.books import IdPath, SessionDep, get_book_or_404
 from app.schemas import ReadingRecordResponse, ReadingRecordUpdate
@@ -18,9 +19,11 @@ def _get_reading_record_or_404(session: Session, book_id: int) -> ReadingRecord:
         select(ReadingRecord).where(ReadingRecord.book_id == book_id)
     )
     if record is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"ID {book_id} の本の読書記録は見つかりません",
+        raise api_error(
+            status.HTTP_404_NOT_FOUND,
+            "not_found",
+            ["path", "book_id"],
+            f"ID {book_id} の本の読書記録は見つかりません",
         )
     return record
 

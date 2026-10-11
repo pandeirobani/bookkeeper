@@ -19,6 +19,19 @@ ISBN13_WRONG_CHECK_DIGIT = "9784003101019"
 OTHER_ISBN10_WITH_HYPHENS = "4-87311-778-X"
 OTHER_ISBN13 = "9784873117782"
 
+
+def isbn_conflict_detail(existing_book_id: object) -> list[dict[str, object]]:
+    """ISBNの重複（409）の detail。登録済みの本のIDを ctx で返す"""
+    return [
+        {
+            "type": "already_exists",
+            "loc": ["body", "isbn"],
+            "msg": "このISBNの本はすでに登録されています",
+            "ctx": {"book_id": existing_book_id},
+        }
+    ]
+
+
 # --- 正常系 ---
 
 
@@ -154,10 +167,11 @@ def test_books_without_isbn_can_be_created_multiple_times(client: TestClient):
 
 
 def test_duplicate_isbn_returns_409(client: TestClient, session: Session):
-    client.post("/api/books", json={"isbn": ISBN13, "title": "1冊目"})
+    first = client.post("/api/books", json={"isbn": ISBN13, "title": "1冊目"}).json()
     response = client.post("/api/books", json={"isbn": ISBN13, "title": "2冊目"})
 
     assert response.status_code == 409
+    assert response.json()["detail"] == isbn_conflict_detail(first["id"])
     assert session.query(Book).count() == 1
 
 
@@ -173,13 +187,13 @@ def test_duplicate_isbn_missed_by_check_returns_409(
 ):
     # 重複チェックの後に別のリクエストが同じISBNを登録した場合を、
     # チェックが重複を見逃す形で再現する。DBのUNIQUE制約の違反を500にしない
-    client.post("/api/books", json={"isbn": ISBN13, "title": "1冊目"})
+    first = client.post("/api/books", json={"isbn": ISBN13, "title": "1冊目"}).json()
     monkeypatch.setattr(books_router, "_ensure_isbn_available", lambda *_, **__: None)
 
     response = client.post("/api/books", json={"isbn": ISBN13, "title": "2冊目"})
 
     assert response.status_code == 409
-    assert response.json()["detail"] == f"ISBN {ISBN13} の本はすでに登録されています"
+    assert response.json()["detail"] == isbn_conflict_detail(first["id"])
     assert session.query(Book).count() == 1
     assert session.query(ReadingRecord).count() == 1
 

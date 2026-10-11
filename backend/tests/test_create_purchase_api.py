@@ -224,7 +224,13 @@ def test_create_purchase_for_unknown_book_returns_404(
     response = client.post("/api/books/999/purchases", json=ALL_FIELDS)
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "ID 999 の本は見つかりません"
+    assert response.json()["detail"] == [
+        {
+            "type": "not_found",
+            "loc": ["path", "book_id"],
+            "msg": "ID 999 の本は見つかりません",
+        }
+    ]
     assert session.query(Purchase).count() == 0
 
 

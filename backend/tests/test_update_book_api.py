@@ -19,6 +19,19 @@ ISBN13_WRONG_CHECK_DIGIT = "9784003101019"
 OTHER_ISBN10_WITH_HYPHENS = "4-87311-778-X"
 OTHER_ISBN13 = "9784873117782"
 
+
+def isbn_conflict_detail(existing_book_id: object) -> list[dict[str, object]]:
+    """ISBNの重複（409）の detail。登録済みの本のIDを ctx で返す"""
+    return [
+        {
+            "type": "already_exists",
+            "loc": ["body", "isbn"],
+            "msg": "このISBNの本はすでに登録されています",
+            "ctx": {"book_id": existing_book_id},
+        }
+    ]
+
+
 ALL_FIELDS = {
     "isbn": ISBN13,
     "title": "更新後の書名",
@@ -169,7 +182,7 @@ def test_blank_strings_are_saved_as_null(client: TestClient):
 
 
 def test_isbn_of_another_book_returns_409(client: TestClient, session: Session):
-    create_book(client, isbn=ISBN13)
+    existing = create_book(client, isbn=ISBN13)
     target = create_book(client, isbn=OTHER_ISBN13)
 
     response = client.put(
@@ -178,6 +191,7 @@ def test_isbn_of_another_book_returns_409(client: TestClient, session: Session):
     )
 
     assert response.status_code == 409
+    assert response.json()["detail"] == isbn_conflict_detail(existing["id"])
     book = session.get(Book, target["id"])
     assert book is not None
     assert book.isbn == OTHER_ISBN13
@@ -200,7 +214,7 @@ def test_duplicate_isbn_missed_by_check_returns_409(
 ):
     # 重複チェックの後に別のリクエストが同じISBNを登録した場合を、
     # チェックが重複を見逃す形で再現する。DBのUNIQUE制約の違反を500にしない
-    create_book(client, isbn=ISBN13)
+    existing = create_book(client, isbn=ISBN13)
     target = create_book(client, isbn=OTHER_ISBN13)
     monkeypatch.setattr(books_router, "_ensure_isbn_available", lambda *_, **__: None)
 
@@ -209,7 +223,7 @@ def test_duplicate_isbn_missed_by_check_returns_409(
     )
 
     assert response.status_code == 409
-    assert response.json()["detail"] == f"ISBN {ISBN13} の本はすでに登録されています"
+    assert response.json()["detail"] == isbn_conflict_detail(existing["id"])
     book = session.get(Book, target["id"])
     assert book is not None
     assert book.isbn == OTHER_ISBN13
@@ -223,7 +237,13 @@ def test_update_book_not_found_returns_404(client: TestClient):
     response = client.put("/api/books/999", json=ALL_FIELDS)
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "ID 999 の本は見つかりません"
+    assert response.json()["detail"] == [
+        {
+            "type": "not_found",
+            "loc": ["path", "book_id"],
+            "msg": "ID 999 の本は見つかりません",
+        }
+    ]
 
 
 def test_update_book_with_non_integer_id_returns_422(client: TestClient):

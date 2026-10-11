@@ -1,13 +1,18 @@
-"""入力エラー（422）のメッセージを日本語にする
+"""APIのエラーレスポンス
 
-画面には msg をそのまま表示できるよう、エラーメッセージはここで日本語にそろえる。
-レスポンスの形と type・loc はFastAPI標準のままにし、msg だけを置き換える。
+APIのエラーは、ステータスコードによらず常に次の形で返す。
+画面はどのエラーでも detail[].msg を表示すればよく、loc で項目の横に出せる。
+
+    {"detail": [{"type": "...", "loc": ["body", "isbn"], "msg": "日本語", ...}]}
+
+- 入力エラー（422）：FastAPI標準の形のまま、msg だけを日本語に置き換える
+- アプリが出すエラー（404・409など）：api_error で同じ形にする
 """
 
 from collections.abc import Mapping, Sequence
 from typing import cast
 
-from fastapi import Request, status
+from fastapi import HTTPException, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -36,6 +41,24 @@ FIELD_LABELS = {
     "book_id": "本のID",
     "purchase_id": "購入記録のID",
 }
+
+
+def api_error(
+    status_code: int,
+    error_type: str,
+    loc: Sequence[str],
+    msg: str,
+    ctx: Mapping[str, object] | None = None,
+) -> HTTPException:
+    """アプリが出すエラーを、入力エラー（422）と同じ形の HTTPException にする。
+
+    ctx には、画面で使える補足情報を入れる（例: 重複した本のID）
+    """
+    error: dict[str, object] = {"type": error_type, "loc": list(loc), "msg": msg}
+    if ctx is not None:
+        error["ctx"] = dict(ctx)
+    return HTTPException(status_code=status_code, detail=[error])
+
 
 _INT_TYPES = {"int_type", "int_parsing", "int_parsing_size", "int_from_float"}
 

@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_session
+from app.errors import api_error
 from app.models import Book, ReadingRecord
 from app.schemas import BookCreate, BookDisposalUpdate, BookResponse
 
@@ -27,9 +28,11 @@ _ISBN_UNIQUE_COLUMN = "books.isbn"
 def get_book_or_404(session: Session, book_id: int) -> Book:
     book = session.get(Book, book_id)
     if book is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"ID {book_id} の本は見つかりません",
+        raise api_error(
+            status.HTTP_404_NOT_FOUND,
+            "not_found",
+            ["path", "book_id"],
+            f"ID {book_id} の本は見つかりません",
         )
     return book
 
@@ -43,14 +46,22 @@ def _ensure_isbn_available(
     query = select(Book.id).where(Book.isbn == isbn)
     if exclude_book_id is not None:
         query = query.where(Book.id != exclude_book_id)
-    if session.scalar(query) is not None:
-        raise _isbn_conflict(isbn)
+    existing_book_id = session.scalar(query)
+    if existing_book_id is not None:
+        raise _isbn_conflict(existing_book_id)
 
 
-def _isbn_conflict(isbn: str | None) -> HTTPException:
-    return HTTPException(
-        status_code=status.HTTP_409_CONFLICT,
-        detail=f"ISBN {isbn} の本はすでに登録されています",
+def _isbn_conflict(existing_book_id: int) -> HTTPException:
+    """ISBNの重複の409。画面から登録済みの本へ案内できるよう、そのIDを返す。
+
+    ISBNは入力欄に見えているので、入力エラーと同じくメッセージには入れない
+    """
+    return api_error(
+        status.HTTP_409_CONFLICT,
+        "already_exists",
+        ["body", "isbn"],
+        "このISBNの本はすでに登録されています",
+        ctx={"book_id": existing_book_id},
     )
 
 
@@ -66,9 +77,13 @@ def _isbn_conflict_as_409(session: Session, isbn: str | None) -> Iterator[None]:
         yield
     except IntegrityError as error:
         session.rollback()
-        if _ISBN_UNIQUE_COLUMN in str(error.orig):
-            raise _isbn_conflict(isbn) from error
-        raise
+        if _ISBN_UNIQUE_COLUMN not in str(error.orig):
+            raise
+        # ロールバック後は、競合したリクエストが登録した本が見える
+        existing_book_id = session.scalar(select(Book.id).where(Book.isbn == isbn))
+        if existing_book_id is None:
+            raise
+        raise _isbn_conflict(existing_book_id) from error
 
 
 @router.get("")

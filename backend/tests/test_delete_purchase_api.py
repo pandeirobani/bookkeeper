@@ -70,7 +70,13 @@ def test_delete_unknown_purchase_returns_404(client: TestClient):
     response = client.delete("/api/purchases/999")
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "ID 999 の購入記録は見つかりません"
+    assert response.json()["detail"] == [
+        {
+            "type": "not_found",
+            "loc": ["path", "purchase_id"],
+            "msg": "ID 999 の購入記録は見つかりません",
+        }
+    ]
 
 
 def test_delete_purchase_with_non_integer_id_returns_422(client: TestClient):

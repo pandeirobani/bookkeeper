@@ -148,7 +148,13 @@ def test_update_unknown_purchase_returns_404(client: TestClient):
     response = client.put("/api/purchases/999", json=ALL_FIELDS)
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "ID 999 の購入記録は見つかりません"
+    assert response.json()["detail"] == [
+        {
+            "type": "not_found",
+            "loc": ["path", "purchase_id"],
+            "msg": "ID 999 の購入記録は見つかりません",
+        }
+    ]
 
 
 @pytest.mark.parametrize(

@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.errors import api_error
 from app.models import Purchase
 from app.routers.books import IdPath, SessionDep, get_book_or_404
 from app.schemas import PurchaseCreate, PurchaseResponse
@@ -12,9 +13,11 @@ router = APIRouter(prefix="/api", tags=["purchases"])
 def _get_purchase_or_404(session: Session, purchase_id: int) -> Purchase:
     purchase = session.get(Purchase, purchase_id)
     if purchase is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"ID {purchase_id} の購入記録は見つかりません",
+        raise api_error(
+            status.HTTP_404_NOT_FOUND,
+            "not_found",
+            ["path", "purchase_id"],
+            f"ID {purchase_id} の購入記録は見つかりません",
         )
     return purchase
 
