@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.models import ReadingRecord
 from app.routers.books import SessionDep, get_book_or_404
-from app.schemas import ReadingRecordResponse
+from app.schemas import ReadingRecordResponse, ReadingRecordUpdate
 
 router = APIRouter(
     prefix="/api/books/{book_id}/reading-record", tags=["reading_records"]
@@ -31,3 +31,17 @@ def get_reading_record(book_id: int, session: SessionDep) -> ReadingRecordRespon
     return ReadingRecordResponse.model_validate(
         _get_reading_record_or_404(session, book_id)
     )
+
+
+@router.put("")
+def update_reading_record(
+    book_id: int, payload: ReadingRecordUpdate, session: SessionDep
+) -> ReadingRecordResponse:
+    """読書記録を置き換える。送られなかった任意項目はNULLになる。日付の自動入力はしない"""
+    record = _get_reading_record_or_404(session, book_id)
+
+    for field, value in payload.model_dump().items():
+        setattr(record, field, value)
+    session.commit()
+
+    return ReadingRecordResponse.model_validate(record)

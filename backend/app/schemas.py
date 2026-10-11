@@ -1,9 +1,9 @@
 """APIの入出力スキーマ"""
 
 from datetime import date, datetime
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.isbn import normalize_isbn
 
@@ -97,6 +97,31 @@ class PurchaseResponse(BaseModel):
     store: str | None
     memo: str | None
     created_at: datetime
+
+
+class ReadingRecordUpdate(BaseModel):
+    """読書記録の更新のリクエスト"""
+
+    # 日付は覚えていないこともあるので、状態との組み合わせはチェックしない
+    status: Literal["unread", "reading", "finished"]
+    started_at: date | None = None
+    finished_at: date | None = None
+    memo: str | None = None
+
+    @field_validator("memo")
+    @classmethod
+    def _normalize_blank(cls, value: str | None) -> str | None:
+        return _blank_to_none(value)
+
+    @model_validator(mode="after")
+    def _finished_at_must_not_be_before_started_at(self) -> Self:
+        if (
+            self.started_at is not None
+            and self.finished_at is not None
+            and self.finished_at < self.started_at
+        ):
+            raise ValueError("読了日は開始日以降の日付にしてください")
+        return self
 
 
 class ReadingRecordResponse(BaseModel):
