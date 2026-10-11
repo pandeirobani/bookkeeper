@@ -1,18 +1,11 @@
-import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link } from "react-router";
 import { type Book, fetchBooks } from "../api/books.ts";
 import ErrorMessage from "../components/ErrorMessage.tsx";
+import SuccessMessage from "../components/SuccessMessage.tsx";
 import { useApiData } from "../hooks/useApiData.ts";
+import { useFlashMessage } from "../hooks/useFlashMessage.ts";
 import { formatDate } from "../utils/date.ts";
 import styles from "./BookListPage.module.css";
-
-/** 前の画面から渡されたメッセージ（「〜を登録しました」など）を取り出す */
-function readMessage(state: unknown): string | null {
-  if (typeof state === "object" && state !== null && "message" in state) {
-    return typeof state.message === "string" ? state.message : null;
-  }
-  return null;
-}
 
 function BookTable({ books }: { books: Book[] }) {
   return (
@@ -46,25 +39,12 @@ function BookTable({ books }: { books: Book[] }) {
 
 function BookListPage() {
   const books = useApiData(fetchBooks);
-  const location = useLocation();
-  const navigate = useNavigate();
-  const [message] = useState(() => readMessage(location.state));
-
-  // 表示したメッセージは履歴から消し、再読み込みや「戻る」でもう一度出ないようにする
-  useEffect(() => {
-    if (message !== null) {
-      navigate(location.pathname, { replace: true, state: null });
-    }
-  }, [message, navigate, location.pathname]);
+  const message = useFlashMessage();
 
   return (
     <>
       <h2 id="book-list-heading">本の一覧</h2>
-      {message !== null && (
-        <p role="status" className={styles.message}>
-          {message}
-        </p>
-      )}
+      <SuccessMessage message={message} />
       {books.status === "loading" && <p>読み込み中…</p>}
       {books.status === "error" && (
         <ErrorMessage messages={books.error.details.map((detail) => detail.msg)} />
