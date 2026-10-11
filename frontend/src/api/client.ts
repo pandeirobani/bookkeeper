@@ -29,6 +29,18 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * catch した値を ApiError にそろえる。
+ * API呼び出し以外の失敗（プログラムの誤り）も、画面には同じ形で出す
+ */
+export function toApiError(error: unknown): ApiError {
+  if (error instanceof ApiError) {
+    return error;
+  }
+  console.error(error);
+  return clientError(0, "unknown_error", "予期しないエラーが起きました");
+}
+
 /** バックエンドの外で起きた失敗も、バックエンドのエラーと同じ形にする */
 function clientError(status: number, type: string, msg: string): ApiError {
   return new ApiError(status, [{ type, loc: [], msg }]);
@@ -57,12 +69,12 @@ async function send(path: string, { method = "GET", body }: RequestOptions): Pro
   }
 
   if (!response.ok) {
-    throw await toApiError(response);
+    throw await errorFromResponse(response);
   }
   return response;
 }
 
-async function toApiError(response: Response): Promise<ApiError> {
+async function errorFromResponse(response: Response): Promise<ApiError> {
   // 500 などでは本文がJSONでないことがある
   const body: unknown = await response.json().catch(() => null);
   const parsed = apiErrorBodySchema.safeParse(body);

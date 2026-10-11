@@ -10,6 +10,8 @@
   --accent: #2f6fdb;
   --error: #c4231c;
   --error-bg: #fdf0ef;
+  --success: #2e8540;
+  --success-bg: #eef7f0;
 
   --sans: system-ui, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", Meiryo, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
@@ -30,6 +32,8 @@
     --accent: #7aa7f5;
     --error: #ff8a80;
     --error-bg: #3a1d1d;
+    --success: #6cc581;
+    --success-bg: #1b3022;
   }
 }
 

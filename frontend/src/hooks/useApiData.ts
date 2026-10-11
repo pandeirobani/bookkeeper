@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ApiError } from "../api/client.ts";
+import { type ApiError, toApiError } from "../api/client.ts";
 
 export type ApiDataState<T> =
   { status: "loading" } | { status: "success"; data: T } | { status: "error"; error: ApiError };
@@ -8,15 +8,6 @@ export type ApiData<T> = ApiDataState<T> & {
   /** 取り直す。取り直している間は、前のデータ（またはエラー）を表示したままにする */
   reload: () => void;
 };
-
-function toApiError(error: unknown): ApiError {
-  if (error instanceof ApiError) {
-    return error;
-  }
-  // API呼び出し以外の失敗（プログラムの誤り）。画面には同じ形で出す
-  console.error(error);
-  return new ApiError(0, [{ type: "unknown_error", loc: [], msg: "予期しないエラーが起きました" }]);
-}
 
 /**
  * APIからデータを取得し、読み込み中・成功・失敗の状態を返す。

@@ -79,6 +79,14 @@ describe("BookListPage", () => {
     expect(bodyRows()[0][4]).toBe("2026/10/10");
   });
 
+  it("前の画面からのメッセージがなければ、メッセージ欄を表示しない", async () => {
+    vi.mocked(fetchBooks).mockResolvedValue([BOOK]);
+    renderPage();
+
+    await screen.findByText("全1冊");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
   it("本がなければ登録画面への案内を表示する", async () => {
     vi.mocked(fetchBooks).mockResolvedValue([]);
     renderPage();
