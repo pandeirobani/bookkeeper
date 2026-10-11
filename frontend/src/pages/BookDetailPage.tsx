@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router";
 import { type Book, fetchBook } from "../api/books.ts";
 import BookCover from "../components/BookCover.tsx";
 import ErrorMessage from "../components/ErrorMessage.tsx";
+import ReadingRecordSection from "../components/ReadingRecordSection.tsx";
 import SuccessMessage from "../components/SuccessMessage.tsx";
 import { useApiData } from "../hooks/useApiData.ts";
 import { useFlashMessage } from "../hooks/useFlashMessage.ts";
@@ -58,6 +59,7 @@ function BookDetail({ bookId }: { bookId: number }) {
           </p>
         </div>
       </div>
+      <ReadingRecordSection bookId={bookId} />
     </>
   );
 }

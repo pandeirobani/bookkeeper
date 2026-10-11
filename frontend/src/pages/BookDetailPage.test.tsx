@@ -9,6 +9,11 @@ import BookDetailPage from "./BookDetailPage.tsx";
 vi.mock("../api/books.ts", () => ({
   fetchBook: vi.fn(),
 }));
+// 読書記録の欄は ReadingRecordSection.test.tsx で確かめるので、ここでは読み込み中のままにする
+vi.mock("../api/readingRecords.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/readingRecords.ts")>();
+  return { ...actual, fetchReadingRecord: vi.fn(() => new Promise(() => {})) };
+});
 
 function renderPage(path = "/books/1") {
   render(
