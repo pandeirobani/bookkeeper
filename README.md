@@ -3,23 +3,40 @@ ISBNで登録できる読書管理・書籍費の記録アプリ
 
 ## 開発環境の起動
 
-バックエンドとフロントエンドを別々のターミナルで起動する。
+### 1. 準備（初回とgit pullの後）
+
+依存関係を入れ、DBのテーブルを最新の状態にする。すでに最新なら何もしないので、迷ったら実行してよい。
+
+```sh
+# バックエンド
+cd backend
+uv sync
+uv run alembic upgrade head
+```
+
+```sh
+# フロントエンド
+cd frontend
+npm install
+```
+
+- `uv run alembic upgrade head` は、DB（`backend/bookkeeper.db`）を作り、テーブルを最新の状態にする
+- `uv sync` は省いてもよい。`uv run` が実行のたびに、足りない依存関係を自動で入れる
+- `npm install` は省けない。依存関係が足りないまま起動すると、`Failed to resolve import` のエラーになる
+
+### 2. 起動
+
+バックエンドとフロントエンドを別々のターミナルで起動する。止めるときは、それぞれ `Ctrl + C` を押す。
 
 ```sh
 # バックエンド（http://localhost:8000）
 cd backend
-uv sync
-uv run alembic upgrade head
 uv run uvicorn app.main:app --reload
 ```
-
-`uv run alembic upgrade head` は、DB（`backend/bookkeeper.db`）を作り、テーブルを最新の状態にする。
-初回のほか、マイグレーションが追加されたとき（`git pull` の後など）にも実行する。最新の状態なら何もしない。
 
 ```sh
 # フロントエンド（http://localhost:5173）
 cd frontend
-npm install
 npm run dev
 ```
 
