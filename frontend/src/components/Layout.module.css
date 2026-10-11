@@ -1,0 +1,48 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 32px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.title {
+  margin: 0;
+  font-size: 24px;
+}
+
+.nav {
+  display: flex;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.navLink {
+  padding: 4px 0;
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+
+.navLink:hover {
+  color: var(--text-h);
+}
+
+.active {
+  color: var(--text-h);
+  border-bottom-color: var(--accent);
+}
+
+.main {
+  flex: 1;
+  padding: 24px;
+}
+
+.footer {
+  padding: 8px 24px;
+  font-size: 14px;
+  border-top: 1px solid var(--border);
+}
