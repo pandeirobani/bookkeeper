@@ -67,7 +67,19 @@
   cursor: pointer;
 }
 
-.submit:disabled {
+/* 主な操作ではないボタン（「手元に戻す」「やめる」など） */
+.secondary {
+  padding: 8px 24px;
+  font: inherit;
+  color: var(--text-h);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.submit:disabled,
+.secondary:disabled {
   opacity: 0.6;
   cursor: default;
 }

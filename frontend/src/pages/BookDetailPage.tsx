@@ -2,12 +2,13 @@ import { useCallback } from "react";
 import { Link, useParams } from "react-router";
 import { type Book, fetchBook } from "../api/books.ts";
 import BookCover from "../components/BookCover.tsx";
+import DisposalSection from "../components/DisposalSection.tsx";
 import ErrorMessage from "../components/ErrorMessage.tsx";
 import ReadingRecordSection from "../components/ReadingRecordSection.tsx";
 import SuccessMessage from "../components/SuccessMessage.tsx";
 import { useApiData } from "../hooks/useApiData.ts";
 import { useFlashMessage } from "../hooks/useFlashMessage.ts";
-import { formatLocalDate } from "../utils/date.ts";
+import { formatDate, formatLocalDate } from "../utils/date.ts";
 import { formatYen, parseId } from "../utils/format.ts";
 import BookNotFound from "./BookNotFound.tsx";
 import styles from "./BookDetailPage.module.css";
@@ -21,6 +22,9 @@ function BookInfo({ book }: { book: Book }) {
     ["定価", book.list_price === null ? null : formatYen(book.list_price)],
     ["登録日", formatLocalDate(book.created_at)],
   ];
+  if (book.disposed_on !== null) {
+    items.push(["手放した日", formatDate(book.disposed_on)]);
+  }
   return (
     <dl className={styles.info}>
       {items.map(([label, value]) => (
@@ -60,6 +64,7 @@ function BookDetail({ bookId }: { bookId: number }) {
         </div>
       </div>
       <ReadingRecordSection bookId={bookId} />
+      <DisposalSection book={book.data} onChanged={book.reload} />
     </>
   );
 }

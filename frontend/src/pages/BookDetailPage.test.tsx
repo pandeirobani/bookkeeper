@@ -62,6 +62,14 @@ describe("BookDetailPage", () => {
     );
   });
 
+  it("手放した本は、手放した日も表示する", async () => {
+    vi.mocked(fetchBook).mockResolvedValue(makeBook({ disposed_on: "2026-10-10" }));
+    renderPage();
+
+    await screen.findByRole("heading", { level: 2, name: "テスト書籍" });
+    expect(infoItems()).toMatchObject({ 手放した日: "2026/10/10" });
+  });
+
   it("値のない項目は「—」と表示する", async () => {
     vi.mocked(fetchBook).mockResolvedValue(
       makeBook({

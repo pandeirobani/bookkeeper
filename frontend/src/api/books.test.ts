@@ -7,6 +7,7 @@ import {
   fetchBooks,
   findConflictingBookId,
   updateBook,
+  updateDisposal,
 } from "./books.ts";
 
 const BOOK = {
@@ -134,5 +135,28 @@ describe("findConflictingBookId", () => {
     ]);
 
     expect(findConflictingBookId(error)).toBeNull();
+  });
+});
+
+describe("updateDisposal", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it.each([
+    { disposedOn: "2026-10-10", description: "手放した日を設定する" },
+    { disposedOn: null, description: "手元に戻す" },
+  ])("$description: $disposedOn を PUT /api/books/{id}/disposal に送る", async ({ disposedOn }) => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json(BOOK));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(updateDisposal(1, disposedOn)).resolves.toEqual(BOOK);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/books/1/disposal",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ disposed_on: disposedOn }),
+      }),
+    );
   });
 });

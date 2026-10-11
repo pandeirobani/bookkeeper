@@ -8,6 +8,18 @@ export function formatDate(value: string): string {
 }
 
 /**
+ * 表示する環境のタイムゾーンでの今日の日付を YYYY-MM-DD で返す。
+ *
+ * toISOString() はUTCの日付になり、日本時間の朝9時までは前日になるので使わない
+ */
+export function todayLocal(now: Date = new Date()): string {
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * UTCの日時（created_at など）を、表示する環境のタイムゾーンでの日付 YYYY/MM/DD にする。
  *
  * timeZone はテストで固定するためのもので、画面では省略してブラウザのタイムゾーンを使う

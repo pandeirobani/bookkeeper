@@ -53,6 +53,17 @@ export function updateBook(bookId: number, input: BookInput): Promise<Book> {
   return apiRequest(`/books/${bookId}`, bookSchema, { method: "PUT", body: input });
 }
 
+/**
+ * 手放した日を設定する。null を送ると手元に戻す。
+ * disposedOn は日付（YYYY-MM-DD）。空文字はサーバーが日付の形式の誤りとして扱う
+ */
+export function updateDisposal(bookId: number, disposedOn: string | null): Promise<Book> {
+  return apiRequest(`/books/${bookId}/disposal`, bookSchema, {
+    method: "PUT",
+    body: { disposed_on: disposedOn },
+  });
+}
+
 /** ISBNの重複（409）のエラーから、登録済みの本のIDを取り出す。重複のエラーでなければ null */
 export function findConflictingBookId(error: ApiError): number | null {
   for (const detail of error.details) {
