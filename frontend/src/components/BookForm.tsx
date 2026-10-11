@@ -30,7 +30,11 @@ const FIELD_CONFIGS: FieldConfig[] = [
   },
   { name: "author", label: "著者", hint: "複数の著者はカンマ（,）で区切ります" },
   { name: "publisher", label: "出版社" },
-  { name: "published_date", label: "出版日", hint: "例：2024-05" },
+  {
+    name: "published_date",
+    label: "出版日",
+    hint: "例：2024-05-10。日や月がわからなければ 2024-05 や 2024 でもかまいません",
+  },
   { name: "list_price", label: "定価（税込・円）", inputMode: "numeric" },
   { name: "cover_image_url", label: "表紙画像のURL", type: "url" },
 ];
