@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import ReadingRecord
-from app.routers.books import SessionDep, get_book_or_404
+from app.routers.books import IdPath, SessionDep, get_book_or_404
 from app.schemas import ReadingRecordResponse, ReadingRecordUpdate
 
 router = APIRouter(
@@ -26,7 +26,7 @@ def _get_reading_record_or_404(session: Session, book_id: int) -> ReadingRecord:
 
 
 @router.get("")
-def get_reading_record(book_id: int, session: SessionDep) -> ReadingRecordResponse:
+def get_reading_record(book_id: IdPath, session: SessionDep) -> ReadingRecordResponse:
     """本の読書記録を返す"""
     return ReadingRecordResponse.model_validate(
         _get_reading_record_or_404(session, book_id)
@@ -35,7 +35,7 @@ def get_reading_record(book_id: int, session: SessionDep) -> ReadingRecordRespon
 
 @router.put("")
 def update_reading_record(
-    book_id: int, payload: ReadingRecordUpdate, session: SessionDep
+    book_id: IdPath, payload: ReadingRecordUpdate, session: SessionDep
 ) -> ReadingRecordResponse:
     """読書記録を置き換える。送られなかった任意項目はNULLになる。日付の自動入力はしない"""
     record = _get_reading_record_or_404(session, book_id)

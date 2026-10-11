@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Purchase
-from app.routers.books import SessionDep, get_book_or_404
+from app.routers.books import IdPath, SessionDep, get_book_or_404
 from app.schemas import PurchaseCreate, PurchaseResponse
 
 router = APIRouter(prefix="/api", tags=["purchases"])
@@ -20,7 +20,7 @@ def _get_purchase_or_404(session: Session, purchase_id: int) -> Purchase:
 
 
 @router.get("/books/{book_id}/purchases")
-def list_purchases(book_id: int, session: SessionDep) -> list[PurchaseResponse]:
+def list_purchases(book_id: IdPath, session: SessionDep) -> list[PurchaseResponse]:
     """本の購入記録を購入日の新しい順に返す"""
     get_book_or_404(session, book_id)
 
@@ -35,7 +35,7 @@ def list_purchases(book_id: int, session: SessionDep) -> list[PurchaseResponse]:
 
 @router.post("/books/{book_id}/purchases", status_code=status.HTTP_201_CREATED)
 def create_purchase(
-    book_id: int, payload: PurchaseCreate, session: SessionDep
+    book_id: IdPath, payload: PurchaseCreate, session: SessionDep
 ) -> PurchaseResponse:
     """本に購入記録を追加する。手放した日（disposed_on）は変えない"""
     get_book_or_404(session, book_id)
@@ -49,7 +49,7 @@ def create_purchase(
 
 @router.put("/purchases/{purchase_id}")
 def update_purchase(
-    purchase_id: int, payload: PurchaseCreate, session: SessionDep
+    purchase_id: IdPath, payload: PurchaseCreate, session: SessionDep
 ) -> PurchaseResponse:
     """購入記録を置き換える。送られなかった任意項目はNULLになる。本の付け替えはできない"""
     purchase = _get_purchase_or_404(session, purchase_id)
@@ -62,7 +62,7 @@ def update_purchase(
 
 
 @router.delete("/purchases/{purchase_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_purchase(purchase_id: int, session: SessionDep) -> None:
+def delete_purchase(purchase_id: IdPath, session: SessionDep) -> None:
     """購入記録を削除する。本は残る"""
     purchase = _get_purchase_or_404(session, purchase_id)
     session.delete(purchase)

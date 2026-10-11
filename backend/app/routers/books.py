@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -11,6 +11,10 @@ from app.schemas import BookCreate, BookDisposalUpdate, BookResponse
 router = APIRouter(prefix="/api/books", tags=["books"])
 
 SessionDep = Annotated[Session, Depends(get_session)]
+
+# SQLiteの整数の最大値。これを超えるIDでDBを検索すると500になるので、422にする
+SQLITE_MAX_INTEGER = 2**63 - 1
+IdPath = Annotated[int, Path(le=SQLITE_MAX_INTEGER)]
 
 
 def get_book_or_404(session: Session, book_id: int) -> Book:
@@ -50,7 +54,7 @@ def list_books(session: SessionDep) -> list[BookResponse]:
 
 
 @router.get("/{book_id}")
-def get_book(book_id: int, session: SessionDep) -> BookResponse:
+def get_book(book_id: IdPath, session: SessionDep) -> BookResponse:
     """書籍を1件返す"""
     return BookResponse.model_validate(get_book_or_404(session, book_id))
 
@@ -70,7 +74,9 @@ def create_book(payload: BookCreate, session: SessionDep) -> BookResponse:
 
 
 @router.put("/{book_id}")
-def update_book(book_id: int, payload: BookCreate, session: SessionDep) -> BookResponse:
+def update_book(
+    book_id: IdPath, payload: BookCreate, session: SessionDep
+) -> BookResponse:
     """書籍の書誌情報を置き換える。送られなかった任意項目はNULLになる。読書記録は変えない"""
     book = get_book_or_404(session, book_id)
     _ensure_isbn_available(session, payload.isbn, exclude_book_id=book_id)
@@ -84,7 +90,7 @@ def update_book(book_id: int, payload: BookCreate, session: SessionDep) -> BookR
 
 @router.put("/{book_id}/disposal")
 def update_book_disposal(
-    book_id: int, payload: BookDisposalUpdate, session: SessionDep
+    book_id: IdPath, payload: BookDisposalUpdate, session: SessionDep
 ) -> BookResponse:
     """手放した日を設定する。NULLを送ると手元に戻す。書誌情報や記録は変えない"""
     book = get_book_or_404(session, book_id)
@@ -95,7 +101,7 @@ def update_book_disposal(
 
 
 @router.delete("/{book_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_book(book_id: int, session: SessionDep) -> None:
+def delete_book(book_id: IdPath, session: SessionDep) -> None:
     """書籍を削除する。読書記録と購入記録もDBのCASCADEで一緒に削除される"""
     book = get_book_or_404(session, book_id)
     session.delete(book)
