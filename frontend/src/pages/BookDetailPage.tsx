@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { Link, useParams } from "react-router";
 import { type Book, fetchBook } from "../api/books.ts";
 import BookCover from "../components/BookCover.tsx";
+import DeleteSection from "../components/DeleteSection.tsx";
 import DisposalSection from "../components/DisposalSection.tsx";
 import ErrorMessage from "../components/ErrorMessage.tsx";
 import ReadingRecordSection from "../components/ReadingRecordSection.tsx";
@@ -65,6 +66,7 @@ function BookDetail({ bookId }: { bookId: number }) {
       </div>
       <ReadingRecordSection bookId={bookId} />
       <DisposalSection book={book.data} onChanged={book.reload} />
+      <DeleteSection book={book.data} />
     </>
   );
 }

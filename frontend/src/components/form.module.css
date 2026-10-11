@@ -78,8 +78,20 @@
   cursor: pointer;
 }
 
+/* 取り消せない操作（削除）のボタン */
+.danger {
+  padding: 8px 24px;
+  font: inherit;
+  color: #fff;
+  background: var(--error);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
 .submit:disabled,
-.secondary:disabled {
+.secondary:disabled,
+.danger:disabled {
   opacity: 0.6;
   cursor: default;
 }

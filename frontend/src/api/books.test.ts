@@ -3,6 +3,7 @@ import { ApiError } from "./client.ts";
 import {
   type BookInput,
   createBook,
+  deleteBook,
   fetchBook,
   fetchBooks,
   findConflictingBookId,
@@ -157,6 +158,23 @@ describe("updateDisposal", () => {
         method: "PUT",
         body: JSON.stringify({ disposed_on: disposedOn }),
       }),
+    );
+  });
+});
+
+describe("deleteBook", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("DELETE /api/books/{id} を呼ぶ", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(deleteBook(1)).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/books/1",
+      expect.objectContaining({ method: "DELETE" }),
     );
   });
 });

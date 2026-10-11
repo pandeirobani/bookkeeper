@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { type ApiError, apiRequest } from "./client.ts";
+import { type ApiError, apiRequest, apiRequestWithoutContent } from "./client.ts";
 
 // バックエンドの BookResponse（backend/app/schemas.py）と同じ形
 const bookSchema = z.object({
@@ -62,6 +62,11 @@ export function updateDisposal(bookId: number, disposedOn: string | null): Promi
     method: "PUT",
     body: { disposed_on: disposedOn },
   });
+}
+
+/** 書籍を削除する。読書記録と購入記録も一緒に削除される */
+export function deleteBook(bookId: number): Promise<void> {
+  return apiRequestWithoutContent(`/books/${bookId}`, { method: "DELETE" });
 }
 
 /** ISBNの重複（409）のエラーから、登録済みの本のIDを取り出す。重複のエラーでなければ null */
