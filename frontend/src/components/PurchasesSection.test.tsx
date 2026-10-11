@@ -165,7 +165,8 @@ describe("PurchasesSection", () => {
     it("入力エラーは入力欄の下に表示し、フォームを開いたままにする", async () => {
       vi.mocked(createPurchase).mockRejectedValue(
         new ApiError(422, [
-          { type: "missing", loc: ["body", "amount"], msg: "金額を入力してください" },
+          // 空欄の金額は null で送るので、サーバーは int_type を返し、文言は未入力として伝える
+          { type: "int_type", loc: ["body", "amount"], msg: "金額を入力してください" },
         ]),
       );
       const { user, purchases } = renderSection();

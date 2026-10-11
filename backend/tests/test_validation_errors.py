@@ -140,6 +140,53 @@ def test_missing_fields_are_all_reported_in_japanese(client: TestClient):
     }
 
 
+@pytest.mark.parametrize(
+    ("path", "payload", "field", "error_type", "message"),
+    [
+        (
+            "/api/books/{book_id}/purchases",
+            {**PURCHASE, "amount": None},
+            "amount",
+            "int_type",
+            "金額を入力してください",
+        ),
+        (
+            "/api/books/{book_id}/purchases",
+            {**PURCHASE, "purchased_on": None},
+            "purchased_on",
+            "date_type",
+            "購入日を入力してください",
+        ),
+        (
+            "/api/books",
+            {"title": None},
+            "title",
+            "string_type",
+            "書名を入力してください",
+        ),
+    ],
+)
+def test_null_for_required_field_is_reported_as_missing(
+    client: TestClient,
+    path: str,
+    payload: dict[str, object],
+    field: str,
+    error_type: str,
+    message: str,
+):
+    # 画面は空欄の金額を null で送る。型の誤り（「整数で入力してください」）ではなく、
+    # 未入力として伝える。type は Pydantic のまま変えない
+    book_id = create_book(client)
+
+    response = client.post(path.format(book_id=book_id), json=payload)
+
+    assert response.status_code == 422
+    [error] = response.json()["detail"]
+    assert error["type"] == error_type
+    assert error["loc"] == ["body", field]
+    assert error["msg"] == message
+
+
 def test_literal_error_is_in_japanese(client: TestClient):
     book_id = create_book(client)
 

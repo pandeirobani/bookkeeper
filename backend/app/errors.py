@@ -125,7 +125,9 @@ def to_japanese_message(error: Mapping[str, object]) -> str:
             return "リクエストの本文がありません"
         return "入力値が正しくありません"
 
-    if error_type == "missing":
+    # 必須の項目に null が届くと、Pydantic は型の誤り（int_type など）にする。
+    # 画面は空欄を null で送ることがあるので、型の誤りではなく未入力として伝える
+    if error_type == "missing" or ("input" in error and error["input"] is None):
         return f"{label}を入力してください"
     if error_type == "string_type":
         return f"{label}は文字列で入力してください"
