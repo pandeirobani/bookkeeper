@@ -1,16 +1,16 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes } from "react-router";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { type Book, type BookInput, createBook, fetchBook } from "../api/books.ts";
+import { type Book, type BookInput, createBook } from "../api/books.ts";
 import { ApiError, type ApiErrorDetail } from "../api/client.ts";
+import { useFlashMessage } from "../hooks/useFlashMessage.ts";
 import BookCreatePage from "./BookCreatePage.tsx";
-import BookDetailPage from "./BookDetailPage.tsx";
 
 vi.mock("../api/books.ts", async (importOriginal) => {
   // findConflictingBookId は本物を使う
   const actual = await importOriginal<typeof import("../api/books.ts")>();
-  return { ...actual, createBook: vi.fn(), fetchBook: vi.fn() };
+  return { ...actual, createBook: vi.fn() };
 });
 
 const BOOK: Book = {
@@ -36,12 +36,22 @@ const EMPTY_INPUT: BookInput = {
   cover_image_url: "",
 };
 
-/** 登録画面から始め、登録後に移る詳細画面も表示できるようにする */
+/**
+ * 登録後に移る詳細画面の代わり。URLと受け取ったメッセージを表示する。
+ * 詳細画面の中身（本や読書記録の取得）は BookDetailPage.test.tsx で確かめる
+ */
+function DetailStub() {
+  const location = useLocation();
+  const message = useFlashMessage();
+  return <p>{`詳細画面 ${location.pathname} ${message ?? ""}`}</p>;
+}
+
+/** 登録画面から始め、登録後に移る詳細画面の代わりも表示できるようにする */
 function renderPage() {
   render(
     <MemoryRouter initialEntries={["/books/new"]}>
       <Routes>
-        <Route path="/books/:bookId" element={<BookDetailPage />} />
+        <Route path="/books/:bookId" element={<DetailStub />} />
         <Route path="/books/new" element={<BookCreatePage />} />
       </Routes>
     </MemoryRouter>,
@@ -56,12 +66,10 @@ function rejectWith(status: number, details: ApiErrorDetail[]) {
 describe("BookCreatePage", () => {
   afterEach(() => {
     vi.mocked(createBook).mockReset();
-    vi.mocked(fetchBook).mockReset();
   });
 
   it("入力した値を送る", async () => {
     vi.mocked(createBook).mockResolvedValue(BOOK);
-    vi.mocked(fetchBook).mockResolvedValue(BOOK);
     const user = renderPage();
 
     await user.type(screen.getByLabelText(/書名/), "テスト書籍");
@@ -82,19 +90,20 @@ describe("BookCreatePage", () => {
       list_price: 1980,
       cover_image_url: "https://example.com/cover.jpg",
     });
+    // 画面の移動が終わるまで待ち、テストの後片付けと重ならないようにする
+    expect(await screen.findByText(/^詳細画面/)).toBeInTheDocument();
   });
 
   it("登録できたら登録した本の詳細画面に移り、登録したことを表示する", async () => {
-    vi.mocked(createBook).mockResolvedValue(BOOK);
-    vi.mocked(fetchBook).mockResolvedValue(BOOK);
+    vi.mocked(createBook).mockResolvedValue({ ...BOOK, id: 12 });
     const user = renderPage();
 
     await user.type(screen.getByLabelText(/書名/), "テスト書籍");
     await user.click(screen.getByRole("button", { name: "登録する" }));
 
-    expect(await screen.findByRole("heading", { name: "テスト書籍" })).toBeInTheDocument();
-    expect(fetchBook).toHaveBeenCalledWith(BOOK.id);
-    expect(screen.getByRole("status")).toHaveTextContent("「テスト書籍」を登録しました");
+    expect(
+      await screen.findByText("詳細画面 /books/12 「テスト書籍」を登録しました"),
+    ).toBeInTheDocument();
   });
 
   it("入力エラーは該当する入力欄の下に表示し、最初の入力欄に移動する", async () => {
