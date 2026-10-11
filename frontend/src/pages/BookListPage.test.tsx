@@ -71,6 +71,16 @@ describe("BookListPage", () => {
     ]);
   });
 
+  it("書名から本の詳細画面に移れる", async () => {
+    vi.mocked(fetchBooks).mockResolvedValue([{ ...BOOK, id: 12 }]);
+    renderPage();
+
+    expect(await screen.findByRole("link", { name: "テスト書籍" })).toHaveAttribute(
+      "href",
+      "/books/12",
+    );
+  });
+
   it("手放した本は手放した日を表示する", async () => {
     vi.mocked(fetchBooks).mockResolvedValue([{ ...BOOK, disposed_on: "2026-10-10" }]);
     renderPage();

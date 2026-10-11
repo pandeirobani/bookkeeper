@@ -2,14 +2,14 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { type Book, type BookInput, createBook, fetchBooks } from "../api/books.ts";
+import { type Book, type BookInput, createBook, fetchBook } from "../api/books.ts";
 import { ApiError, type ApiErrorDetail } from "../api/client.ts";
 import BookCreatePage from "./BookCreatePage.tsx";
-import BookListPage from "./BookListPage.tsx";
+import BookDetailPage from "./BookDetailPage.tsx";
 
 vi.mock("../api/books.ts", () => ({
   createBook: vi.fn(),
-  fetchBooks: vi.fn(),
+  fetchBook: vi.fn(),
 }));
 
 const BOOK: Book = {
@@ -35,12 +35,12 @@ const EMPTY_INPUT: BookInput = {
   cover_image_url: "",
 };
 
-/** 登録画面から始め、登録後に移る一覧画面も表示できるようにする */
+/** 登録画面から始め、登録後に移る詳細画面も表示できるようにする */
 function renderPage() {
   render(
     <MemoryRouter initialEntries={["/books/new"]}>
       <Routes>
-        <Route path="/" element={<BookListPage />} />
+        <Route path="/books/:bookId" element={<BookDetailPage />} />
         <Route path="/books/new" element={<BookCreatePage />} />
       </Routes>
     </MemoryRouter>,
@@ -55,12 +55,12 @@ function rejectWith(status: number, details: ApiErrorDetail[]) {
 describe("BookCreatePage", () => {
   afterEach(() => {
     vi.mocked(createBook).mockReset();
-    vi.mocked(fetchBooks).mockReset();
+    vi.mocked(fetchBook).mockReset();
   });
 
   it("入力した値を送る", async () => {
     vi.mocked(createBook).mockResolvedValue(BOOK);
-    vi.mocked(fetchBooks).mockResolvedValue([BOOK]);
+    vi.mocked(fetchBook).mockResolvedValue(BOOK);
     const user = renderPage();
 
     await user.type(screen.getByLabelText(/書名/), "テスト書籍");
@@ -83,15 +83,16 @@ describe("BookCreatePage", () => {
     });
   });
 
-  it("登録できたら一覧画面に移り、登録したことを表示する", async () => {
+  it("登録できたら登録した本の詳細画面に移り、登録したことを表示する", async () => {
     vi.mocked(createBook).mockResolvedValue(BOOK);
-    vi.mocked(fetchBooks).mockResolvedValue([BOOK]);
+    vi.mocked(fetchBook).mockResolvedValue(BOOK);
     const user = renderPage();
 
     await user.type(screen.getByLabelText(/書名/), "テスト書籍");
     await user.click(screen.getByRole("button", { name: "登録する" }));
 
-    expect(await screen.findByRole("heading", { name: "本の一覧" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "テスト書籍" })).toBeInTheDocument();
+    expect(fetchBook).toHaveBeenCalledWith(BOOK.id);
     expect(screen.getByRole("status")).toHaveTextContent("「テスト書籍」を登録しました");
   });
 

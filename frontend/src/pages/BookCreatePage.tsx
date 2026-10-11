@@ -8,8 +8,7 @@ function BookCreatePage() {
 
   async function handleSubmit(input: BookInput) {
     const book = await createBook(input);
-    // 段階3で、登録した本の詳細画面に移るように変える
-    navigate("/", withFlashMessage(`「${book.title}」を登録しました`));
+    navigate(`/books/${book.id}`, withFlashMessage(`「${book.title}」を登録しました`));
   }
 
   return (

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "./client.ts";
-import { type BookInput, createBook, fetchBooks } from "./books.ts";
+import { type BookInput, createBook, fetchBook, fetchBooks } from "./books.ts";
 
 const BOOK = {
   id: 1,
@@ -69,6 +69,23 @@ describe("createBook", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/books",
       expect.objectContaining({ method: "POST", body: JSON.stringify(INPUT) }),
+    );
+  });
+});
+
+describe("fetchBook", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("/api/books/{id} を呼び、書籍を返す", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json(BOOK));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchBook(1)).resolves.toEqual(BOOK);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/books/1",
+      expect.objectContaining({ method: "GET" }),
     );
   });
 });

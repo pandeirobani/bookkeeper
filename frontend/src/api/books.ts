@@ -40,6 +40,10 @@ export function fetchBooks(): Promise<Book[]> {
   return apiRequest("/books", z.array(bookSchema));
 }
 
+export function fetchBook(bookId: number): Promise<Book> {
+  return apiRequest(`/books/${bookId}`, bookSchema);
+}
+
 export function createBook(input: BookInput): Promise<Book> {
   return apiRequest("/books", bookSchema, { method: "POST", body: input });
 }

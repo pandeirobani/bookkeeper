@@ -24,7 +24,7 @@ function BookTable({ books }: { books: Book[] }) {
           // 手放した本も一覧に残し、薄く表示して区別する
           <tr key={book.id} className={book.disposed_on === null ? undefined : styles.disposed}>
             <th scope="row" className={styles.title}>
-              {book.title}
+              <Link to={`/books/${book.id}`}>{book.title}</Link>
             </th>
             <td>{book.author}</td>
             <td>{book.publisher}</td>

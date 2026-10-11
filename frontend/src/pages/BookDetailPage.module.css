@@ -1,0 +1,27 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.info {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 0;
+}
+
+/* dt と dd を1組ずつ div で囲み、グリッドの行にする */
+.infoItem {
+  display: contents;
+}
+
+.infoItem dt {
+  color: var(--text-muted);
+}
+
+.infoItem dd {
+  margin: 0;
+  color: var(--text-h);
+}

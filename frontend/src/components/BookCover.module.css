@@ -1,0 +1,21 @@
+.cover,
+.placeholder {
+  box-sizing: border-box;
+  width: 128px;
+  height: 182px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.cover {
+  object-fit: contain;
+  background: var(--bg);
+}
+
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
