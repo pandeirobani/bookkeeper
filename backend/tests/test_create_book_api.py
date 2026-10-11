@@ -1,5 +1,7 @@
 """書籍登録API POST /api/books のテスト"""
 
+from datetime import UTC, datetime
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
@@ -38,6 +40,18 @@ def test_create_book_with_all_fields(client: TestClient):
         "cover_image_url": "https://example.com/cover.jpg",
         "disposed_on": None,
     }
+
+
+def test_created_at_is_returned_as_utc(client: TestClient):
+    before = datetime.now(UTC).replace(microsecond=0)
+    response = client.post("/api/books", json={"title": "テスト書籍"})
+    after = datetime.now(UTC)
+
+    created_at = response.json()["created_at"]
+    # 末尾の Z でUTCとわかるようにし、ブラウザがローカル時刻と解釈しないようにする
+    assert created_at.endswith("Z")
+    # Z を付けた値が、実際にUTCの現在時刻になっている
+    assert before <= datetime.fromisoformat(created_at) <= after
 
 
 def test_create_book_with_title_only(client: TestClient):

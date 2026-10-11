@@ -1,6 +1,6 @@
 """購入記録追加API POST /api/books/{book_id}/purchases のテスト"""
 
-from datetime import date
+from datetime import UTC, date, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -38,6 +38,20 @@ def test_create_purchase_with_all_fields(client: TestClient):
         "book_id": book_id,
         **ALL_FIELDS,
     }
+
+
+def test_created_at_is_returned_as_utc(client: TestClient):
+    book_id = create_book(client)
+
+    before = datetime.now(UTC).replace(microsecond=0)
+    response = client.post(f"/api/books/{book_id}/purchases", json=ALL_FIELDS)
+    after = datetime.now(UTC)
+
+    created_at = response.json()["created_at"]
+    # 末尾の Z でUTCとわかるようにし、ブラウザがローカル時刻と解釈しないようにする
+    assert created_at.endswith("Z")
+    # Z を付けた値が、実際にUTCの現在時刻になっている
+    assert before <= datetime.fromisoformat(created_at) <= after
 
 
 def test_create_purchase_with_required_fields_only(client: TestClient):

@@ -4,11 +4,18 @@
 PUTは丸ごと置き換えるので、項目名の打ち間違いを黙って無視すると値が消えるため。
 """
 
-from datetime import date, datetime
-from typing import Literal, Self
+from datetime import UTC, date, datetime
+from typing import Annotated, Literal, Self
 from urllib.parse import urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 from app.isbn import normalize_isbn
 
@@ -46,6 +53,17 @@ def _check_max_length(value: str | None, max_length: int, label: str) -> str | N
     if value is not None and len(value) > max_length:
         raise ValueError(f"{label}は{max_length}文字以内で入力してください")
     return value
+
+
+def _assume_utc(value: datetime) -> datetime:
+    """タイムゾーンのない日時をUTCとして扱う"""
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value
+
+
+# SQLiteの CURRENT_TIMESTAMP はUTCだが、読み込むとタイムゾーンのない日時になる。
+# そのまま返すとブラウザがローカル時刻と解釈してずれるので、
+# UTCとして末尾に Z を付けて返す
+UtcDatetime = Annotated[datetime, AfterValidator(_assume_utc)]
 
 
 def _is_http_url(value: str) -> bool:
@@ -143,7 +161,7 @@ class BookResponse(BaseModel):
     list_price: int | None
     cover_image_url: str | None
     disposed_on: date | None
-    created_at: datetime
+    created_at: UtcDatetime
 
 
 class PurchaseCreate(BaseModel):
@@ -178,7 +196,7 @@ class PurchaseResponse(BaseModel):
     amount: int
     store: str | None
     memo: str | None
-    created_at: datetime
+    created_at: UtcDatetime
 
 
 class ReadingRecordUpdate(BaseModel):
