@@ -6,6 +6,7 @@ PUTは丸ごと置き換えるので、項目名の打ち間違いを黙って�
 
 from datetime import date, datetime
 from typing import Literal, Self
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -20,6 +21,8 @@ MAX_TITLE_LENGTH = 200
 MAX_AUTHOR_LENGTH = 100
 MAX_PUBLISHER_LENGTH = 100
 MAX_PUBLISHED_DATE_LENGTH = 100
+# ブラウザやサーバーが一般的に扱えるURLの長さに合わせた
+MAX_COVER_IMAGE_URL_LENGTH = 2000
 
 # 購入記録・読書記録の文字数の上限。メモは購入記録と読書記録で共通
 MAX_STORE_LENGTH = 100
@@ -43,6 +46,20 @@ def _check_max_length(value: str | None, max_length: int, label: str) -> str | N
     if value is not None and len(value) > max_length:
         raise ValueError(f"{label}は{max_length}文字以内で入力してください")
     return value
+
+
+def _is_http_url(value: str) -> bool:
+    """スキームが http か https で、ホスト名があるURLかどうか。
+
+    画面で <img src> に入れる値なので、javascript: や data: などを保存させない。
+    HttpUrl 型は保存する値を書き換える（末尾に / を足すなど）ので使わない
+    """
+    try:
+        url = urlsplit(value)
+    except ValueError:  # 閉じていない [ など、URLとして解釈できない
+        return False
+    # urlsplit はスキームを小文字にするので、HTTPS:// も通る
+    return url.scheme in ("http", "https") and bool(url.hostname)
 
 
 class BookCreate(BaseModel):
@@ -92,8 +109,15 @@ class BookCreate(BaseModel):
 
     @field_validator("cover_image_url")
     @classmethod
-    def _normalize_blank(cls, value: str | None) -> str | None:
-        return _blank_to_none(value)
+    def _validate_cover_image_url(cls, value: str | None) -> str | None:
+        value = _check_max_length(
+            _blank_to_none(value), MAX_COVER_IMAGE_URL_LENGTH, "表紙画像のURL"
+        )
+        if value is not None and not _is_http_url(value):
+            raise ValueError(
+                "表紙画像のURLは http:// または https:// で始まるURLを入力してください"
+            )
+        return value
 
 
 class BookDisposalUpdate(BaseModel):
