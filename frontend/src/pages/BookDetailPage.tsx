@@ -6,6 +6,7 @@ import BookCover from "../components/BookCover.tsx";
 import DeleteSection from "../components/DeleteSection.tsx";
 import DisposalSection from "../components/DisposalSection.tsx";
 import ErrorMessage from "../components/ErrorMessage.tsx";
+import PurchasesSection from "../components/PurchasesSection.tsx";
 import ReadingRecordSection from "../components/ReadingRecordSection.tsx";
 import SuccessMessage from "../components/SuccessMessage.tsx";
 import { useApiData } from "../hooks/useApiData.ts";
@@ -68,6 +69,7 @@ function BookDetail({ bookId }: { bookId: number }) {
         </div>
       </div>
       <ReadingRecordSection bookId={bookId} />
+      <PurchasesSection book={book.data} purchases={purchases} />
       <DisposalSection book={book.data} onChanged={book.reload} />
       <DeleteSection book={book.data} purchases={purchases} />
     </>

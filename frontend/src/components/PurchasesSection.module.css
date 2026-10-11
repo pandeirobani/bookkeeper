@@ -1,0 +1,40 @@
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border);
+}
+
+.table thead th {
+  color: var(--text-h);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.date {
+  white-space: nowrap;
+}
+
+/* 金額は桁をそろえるため右寄せにする */
+.table .amount {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.memo {
+  white-space: pre-wrap;
+}
+
+.total {
+  margin-top: 8px;
+  color: var(--text-h);
+  text-align: right;
+}
