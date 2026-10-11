@@ -9,8 +9,12 @@ ISBNで登録できる読書管理・書籍費の記録アプリ
 # バックエンド（http://localhost:8000）
 cd backend
 uv sync
+uv run alembic upgrade head
 uv run uvicorn app.main:app --reload
 ```
+
+`uv run alembic upgrade head` は、DB（`backend/bookkeeper.db`）を作り、テーブルを最新の状態にする。
+初回のほか、マイグレーションが追加されたとき（`git pull` の後など）にも実行する。最新の状態なら何もしない。
 
 ```sh
 # フロントエンド（http://localhost:5173）
