@@ -15,6 +15,16 @@ from app.isbn import normalize_isbn
 # 高価な古書なども記録できる程度に余裕を持たせて決めた
 MAX_PRICE = 10_000_000
 
+# 書誌情報の文字数の上限
+MAX_TITLE_LENGTH = 200
+MAX_AUTHOR_LENGTH = 100
+MAX_PUBLISHER_LENGTH = 100
+MAX_PUBLISHED_DATE_LENGTH = 100
+
+# 購入記録・読書記録の文字数の上限。メモは購入記録と読書記録で共通
+MAX_STORE_LENGTH = 100
+MAX_MEMO_LENGTH = 500
+
 
 def _blank_to_none(value: str | None) -> str | None:
     """前後の空白を取り除き、空文字はNULLにする"""
@@ -22,6 +32,17 @@ def _blank_to_none(value: str | None) -> str | None:
         return None
     value = value.strip()
     return value or None
+
+
+def _check_max_length(value: str | None, max_length: int, label: str) -> str | None:
+    """文字数が上限を超えていれば日本語のメッセージで422にする。
+
+    Field(max_length=...) は英語の固定メッセージになるので、自前で検証する。
+    保存する値で判定するよう、前後の空白を取り除いた後に呼ぶ
+    """
+    if value is not None and len(value) > max_length:
+        raise ValueError(f"{label}は{max_length}文字以内で入力してください")
+    return value
 
 
 class BookCreate(BaseModel):
@@ -45,13 +66,31 @@ class BookCreate(BaseModel):
 
     @field_validator("title")
     @classmethod
-    def _title_must_not_be_blank(cls, value: str) -> str:
+    def _validate_title(cls, value: str) -> str:
         value = value.strip()
         if value == "":
             raise ValueError("書名を入力してください")
+        _check_max_length(value, MAX_TITLE_LENGTH, "書名")
         return value
 
-    @field_validator("author", "publisher", "published_date", "cover_image_url")
+    @field_validator("author")
+    @classmethod
+    def _validate_author(cls, value: str | None) -> str | None:
+        return _check_max_length(_blank_to_none(value), MAX_AUTHOR_LENGTH, "著者")
+
+    @field_validator("publisher")
+    @classmethod
+    def _validate_publisher(cls, value: str | None) -> str | None:
+        return _check_max_length(_blank_to_none(value), MAX_PUBLISHER_LENGTH, "出版社")
+
+    @field_validator("published_date")
+    @classmethod
+    def _validate_published_date(cls, value: str | None) -> str | None:
+        return _check_max_length(
+            _blank_to_none(value), MAX_PUBLISHED_DATE_LENGTH, "出版日"
+        )
+
+    @field_validator("cover_image_url")
     @classmethod
     def _normalize_blank(cls, value: str | None) -> str | None:
         return _blank_to_none(value)
@@ -93,10 +132,15 @@ class PurchaseCreate(BaseModel):
     store: str | None = None
     memo: str | None = None
 
-    @field_validator("store", "memo")
+    @field_validator("store")
     @classmethod
-    def _normalize_blank(cls, value: str | None) -> str | None:
-        return _blank_to_none(value)
+    def _validate_store(cls, value: str | None) -> str | None:
+        return _check_max_length(_blank_to_none(value), MAX_STORE_LENGTH, "購入店")
+
+    @field_validator("memo")
+    @classmethod
+    def _validate_memo(cls, value: str | None) -> str | None:
+        return _check_max_length(_blank_to_none(value), MAX_MEMO_LENGTH, "メモ")
 
 
 class PurchaseResponse(BaseModel):
@@ -126,8 +170,8 @@ class ReadingRecordUpdate(BaseModel):
 
     @field_validator("memo")
     @classmethod
-    def _normalize_blank(cls, value: str | None) -> str | None:
-        return _blank_to_none(value)
+    def _validate_memo(cls, value: str | None) -> str | None:
+        return _check_max_length(_blank_to_none(value), MAX_MEMO_LENGTH, "メモ")
 
     @model_validator(mode="after")
     def _finished_at_must_not_be_before_started_at(self) -> Self:

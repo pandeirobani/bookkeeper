@@ -11,10 +11,10 @@ ISBNからの自動取得、または手動入力で登録する。
 |---|---|---|---|
 | id | INTEGER | PK, AUTOINCREMENT | |
 | isbn | TEXT | UNIQUE | ISBN-13で統一して保存。ISBNのない本はNULL |
-| title | TEXT | NOT NULL | |
-| author | TEXT | | 複数著者はカンマ区切り |
-| publisher | TEXT | | |
-| published_date | TEXT | | API側の形式がまちまちなので文字列 |
+| title | TEXT | NOT NULL | 200文字まで |
+| author | TEXT | | 複数著者はカンマ区切り。100文字まで |
+| publisher | TEXT | | 100文字まで |
+| published_date | TEXT | | API側の形式がまちまちなので文字列。100文字まで |
 | list_price | INTEGER | CHECK (list_price >= 0) | 定価（税込・円）。参考情報。取得できない場合はNULL |
 | cover_image_url | TEXT | | |
 | disposed_on | DATE | | 手放した日（売った・譲った・捨てたなど）。手元にある本はNULL |
@@ -27,8 +27,8 @@ ISBNからの自動取得、または手動入力で登録する。
 | book_id | INTEGER | FK → books.id, NOT NULL, ON DELETE CASCADE | |
 | purchased_on | DATE | NOT NULL | 購入日。月別集計に使う |
 | amount | INTEGER | NOT NULL, CHECK (amount >= 0) | 実際に支払った金額（税込・円） |
-| store | TEXT | | 購入店（任意） |
-| memo | TEXT | | |
+| store | TEXT | | 購入店（任意）。100文字まで |
+| memo | TEXT | | 500文字まで |
 | created_at | DATETIME | NOT NULL | |
 
 インデックス: purchased_on, book_id
@@ -41,7 +41,7 @@ ISBNからの自動取得、または手動入力で登録する。
 | status | TEXT | NOT NULL, 'unread' / 'reading' / 'finished' | |
 | started_at | DATE | | |
 | finished_at | DATE | | |
-| memo | TEXT | | |
+| memo | TEXT | | 500文字まで |
 
 ## リレーション
 - books 1 : 1 reading_records
@@ -65,3 +65,8 @@ ISBNからの自動取得、または手動入力で登録する。
 - ISBNのない本（同人誌・古い本など）を手動で登録できるよう、isbn はNULLを許可する
   - SQLiteのUNIQUE制約は複数のNULLを許すため、ISBNのない本が複数あっても問題ない
   - 空文字はNULLに変換して保存する（空文字同士がUNIQUE違反になるのを防ぐため）
+- 文字列の長さの上限（表の「〇文字まで」）は、DBの制約ではなくAPIの入力値検証でチェックする
+  - SQLiteは VARCHAR(n) と書いても長さを制限しない。制限するには CHECK (length(列) <= n) が必要になるが、SQLiteを使うアプリでそこまでするのは一般的でない
+  - 書き込みはAPIを通るだけなので、APIの検証で十分と判断した
+  - そのため、APIを通らない書き込み（マイグレーションやDBの直接変更）では上限を超える値も入りうる
+  - 前後の空白を取り除いた後の文字数で数える。日本語も英数字も1文字は1文字
