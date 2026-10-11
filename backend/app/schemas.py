@@ -1,6 +1,7 @@
 """APIの入出力スキーマ"""
 
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -96,3 +97,16 @@ class PurchaseResponse(BaseModel):
     store: str | None
     memo: str | None
     created_at: datetime
+
+
+class ReadingRecordResponse(BaseModel):
+    """読書記録のレスポンス"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    book_id: int
+    status: Literal["unread", "reading", "finished"]
+    started_at: date | None
+    finished_at: date | None
+    memo: str | None
