@@ -4,6 +4,7 @@ import { type BookInput, findConflictingBookId } from "../api/books.ts";
 import { toApiError } from "../api/client.ts";
 import { type FieldErrors, splitFieldErrors } from "../api/fieldErrors.ts";
 import ErrorMessage from "./ErrorMessage.tsx";
+import FormField from "./FormField.tsx";
 import {
   BOOK_FIELDS,
   type BookField,
@@ -11,7 +12,7 @@ import {
   EMPTY_BOOK_FORM_VALUES,
   toBookInput,
 } from "./bookFormValues.ts";
-import styles from "./BookForm.module.css";
+import styles from "./form.module.css";
 
 type FieldConfig = {
   name: BookField;
@@ -89,49 +90,35 @@ function BookForm({
     // 入力値の検証はサーバーに任せ、メッセージをサーバーの日本語にそろえる
     <form ref={formRef} onSubmit={handleSubmit} noValidate className={styles.form}>
       <ErrorMessage messages={errors?.general ?? []} />
-      {FIELD_CONFIGS.map(({ name, label, required, hint, type = "text", inputMode }) => {
-        const fieldErrors = errors?.fields[name] ?? [];
-        const hintId = `book-${name}-hint`;
-        const errorId = `book-${name}-error`;
-        const describedBy = [hint && hintId, fieldErrors.length > 0 && errorId]
-          .filter(Boolean)
-          .join(" ");
-        return (
-          <div key={name} className={styles.field}>
-            <label htmlFor={`book-${name}`} className={styles.label}>
-              {label}
-              {required && <span className={styles.required}>（必須）</span>}
-            </label>
+      {FIELD_CONFIGS.map(({ name, label, required, hint, type = "text", inputMode }) => (
+        <FormField
+          key={name}
+          id={`book-${name}`}
+          label={label}
+          required={required}
+          hint={hint}
+          errors={errors?.fields[name]}
+          after={
+            name === "isbn" &&
+            conflictingBookId !== null && (
+              <p className={styles.hint}>
+                <Link to={`/books/${conflictingBookId}`}>登録済みの本を見る</Link>
+              </p>
+            )
+          }
+        >
+          {(controlProps) => (
             <input
-              id={`book-${name}`}
+              {...controlProps}
               name={name}
               type={type}
               inputMode={inputMode}
               value={values[name]}
               onChange={(event) => setValues({ ...values, [name]: event.target.value })}
-              aria-required={required}
-              aria-invalid={fieldErrors.length > 0}
-              aria-describedby={describedBy || undefined}
-              className={styles.input}
             />
-            {hint && (
-              <p id={hintId} className={styles.hint}>
-                {hint}
-              </p>
-            )}
-            {fieldErrors.length > 0 && (
-              <p id={errorId} className={styles.fieldError}>
-                {fieldErrors.join(" ")}
-              </p>
-            )}
-            {name === "isbn" && conflictingBookId !== null && (
-              <p className={styles.hint}>
-                <Link to={`/books/${conflictingBookId}`}>登録済みの本を見る</Link>
-              </p>
-            )}
-          </div>
-        );
-      })}
+          )}
+        </FormField>
+      ))}
       <div className={styles.actions}>
         <button type="submit" disabled={submitting} className={styles.submit}>
           {submitting ? submittingLabel : submitLabel}
