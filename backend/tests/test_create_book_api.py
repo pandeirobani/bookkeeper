@@ -183,3 +183,16 @@ def test_invalid_isbn_error_message_is_returned(client: TestClient):
     [error] = response.json()["detail"]
     assert error["loc"] == ["body", "isbn"]
     assert "番号に入力ミスがないか確認してください" in error["msg"]
+
+
+def test_isbn_with_non_ascii_digits_is_rejected(client: TestClient, session: Session):
+    # 半角の 9784003101018 と同じ値として重複チェックできないため、保存させない
+    response = client.post(
+        "/api/books", json={"title": "テスト書籍", "isbn": "978٤٠٠٣١٠١٠١8"}
+    )
+
+    assert response.status_code == 422
+    [error] = response.json()["detail"]
+    assert error["loc"] == ["body", "isbn"]
+    assert "番号に入力ミスがないか確認してください" in error["msg"]
+    assert session.query(Book).count() == 0

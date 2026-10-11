@@ -38,6 +38,8 @@ def test_valid_isbn_is_normalized_to_isbn13(value: str, expected: str):
         "97840031010188",  # 桁数超過
         "97840031010X8",  # ISBN-13 に X
         "X003101014",  # ISBN-10 の末尾以外に X
+        "978٤٠٠٣١٠١٠١8",  # アラビア・インド数字（NFKCでも半角にならない）
+        "४००३१०१०१4",  # デーヴァナーガリー数字
         "abc",
     ],
 )
