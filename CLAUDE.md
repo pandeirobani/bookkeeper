@@ -8,6 +8,9 @@ ISBNから書誌情報を取得する処理以外は、ローカル環境で完�
 - バックエンド：Python / FastAPI / SQLAlchemy / Alembic / SQLite
 - 依存関係管理：uv
 - フロントエンド：React / TypeScript / Vite
+  - ルーティング：React Router
+  - スタイル：CSS Modules（外部のCSSフレームワーク・フォント・CDNは使わない）
+  - データ取得：fetch の薄いラッパーとカスタムフック（データ取得ライブラリは使わない）
 - パッケージ管理（フロントエンド）：npm
 - テスト：pytest、Vitest + Testing Library
 
