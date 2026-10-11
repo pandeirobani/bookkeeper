@@ -210,6 +210,8 @@ def test_update_book_with_non_integer_id_returns_422(client: TestClient):
         {"title": "テスト書籍", "list_price": -1},
         {"title": "テスト書籍", "isbn": "9784003101019"},  # チェックディジット違い
         {"title": "テスト書籍", "isbn": "abc"},
+        {"title": "テスト書籍", "auther": "著者A"},  # 項目名の打ち間違い
+        {"title": "テスト書籍", "disposed_on": "2026-10-10"},  # 書誌情報ではない
     ],
 )
 def test_invalid_payload_returns_422(

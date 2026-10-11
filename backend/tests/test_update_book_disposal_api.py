@@ -147,6 +147,8 @@ def test_non_integer_id_returns_422(client: TestClient):
         {"disposed_on": "2026/10/10"},
         {"disposed_on": "2026-13-01"},
         {"disposed_on": "abc"},
+        {"disposed_at": "2026-10-11"},  # 項目名の打ち間違い
+        {"disposed_on": "2026-10-11", "title": "別の書名"},  # 書誌情報は変えられない
     ],
 )
 def test_invalid_payload_returns_422(

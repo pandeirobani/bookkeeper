@@ -1,4 +1,8 @@
-"""APIの入出力スキーマ"""
+"""APIの入出力スキーマ
+
+リクエストは extra="forbid" で知らない項目を422にする。
+PUTは丸ごと置き換えるので、項目名の打ち間違いを黙って無視すると値が消えるため。
+"""
 
 from datetime import date, datetime
 from typing import Literal, Self
@@ -18,6 +22,8 @@ def _blank_to_none(value: str | None) -> str | None:
 
 class BookCreate(BaseModel):
     """書籍登録のリクエスト"""
+
+    model_config = ConfigDict(extra="forbid")
 
     isbn: str | None = None
     title: str
@@ -50,6 +56,8 @@ class BookCreate(BaseModel):
 class BookDisposalUpdate(BaseModel):
     """手放した日の設定・解除のリクエスト。NULLで手元に戻す"""
 
+    model_config = ConfigDict(extra="forbid")
+
     # 送り忘れで手元に戻ってしまわないよう、NULLでも省略は許さない
     disposed_on: date | None
 
@@ -73,6 +81,8 @@ class BookResponse(BaseModel):
 
 class PurchaseCreate(BaseModel):
     """購入記録の追加・更新のリクエスト"""
+
+    model_config = ConfigDict(extra="forbid")
 
     purchased_on: date
     amount: int = Field(ge=0)
@@ -101,6 +111,8 @@ class PurchaseResponse(BaseModel):
 
 class ReadingRecordUpdate(BaseModel):
     """読書記録の更新のリクエスト"""
+
+    model_config = ConfigDict(extra="forbid")
 
     # 日付は覚えていないこともあるので、状態との組み合わせはチェックしない
     status: Literal["unread", "reading", "finished"]

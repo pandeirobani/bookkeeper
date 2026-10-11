@@ -149,6 +149,8 @@ def test_same_book_as_isbn10_is_detected_as_duplicate(client: TestClient):
         {"title": "テスト書籍", "list_price": -1},
         {"title": "テスト書籍", "isbn": "9784003101019"},  # チェックディジット違い
         {"title": "テスト書籍", "isbn": "abc"},
+        {"title": "テスト書籍", "auther": "著者A"},  # 項目名の打ち間違い
+        {"title": "テスト書籍", "disposed_on": "2026-10-10"},  # 書誌情報ではない
     ],
 )
 def test_invalid_payload_returns_422(

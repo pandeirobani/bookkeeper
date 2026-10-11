@@ -167,6 +167,8 @@ def test_create_purchase_for_unknown_book_returns_404(
         {"purchased_on": "2026-10-01", "amount": 19.8},
         {"purchased_on": "2026-13-01", "amount": 1980},
         {"purchased_on": "", "amount": 1980},
+        # 項目名の打ち間違い
+        {"purchased_on": "2026-10-01", "amount": 1980, "stor": "テスト書店"},
     ],
 )
 def test_invalid_payload_returns_422(

@@ -203,6 +203,8 @@ def test_non_integer_id_returns_422(client: TestClient):
         {"status": "finished", "finished_at": "abc"},
         # 読了日が開始日より前
         {"status": "finished", "started_at": "2026-10-10", "finished_at": "2026-10-09"},
+        # 項目名の打ち間違い
+        {"status": "finished", "started_at": "2026-09-01", "finshed_at": "2026-10-10"},
     ],
 )
 def test_invalid_payload_returns_422(

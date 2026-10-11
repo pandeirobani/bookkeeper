@@ -67,16 +67,19 @@ def test_update_purchase_keeps_id_book_id_and_created_at(client: TestClient):
     assert body["created_at"] == created["created_at"]
 
 
-def test_book_id_in_payload_is_ignored(client: TestClient):
+def test_book_id_in_payload_returns_422(client: TestClient, session: Session):
     # 購入記録を別の本に付け替えることはできない
     created = create_purchase(client)
     other_id = client.post("/api/books", json={"title": "別の本"}).json()["id"]
 
-    body = client.put(
+    response = client.put(
         f"/api/purchases/{created['id']}", json={**ALL_FIELDS, "book_id": other_id}
-    ).json()
+    )
 
-    assert body["book_id"] == created["book_id"]
+    assert response.status_code == 422
+    purchase = session.get(Purchase, created["id"])
+    assert purchase is not None
+    assert purchase.book_id == created["book_id"]
 
 
 def test_omitted_optional_fields_become_null(client: TestClient):
@@ -138,6 +141,8 @@ def test_update_unknown_purchase_returns_404(client: TestClient):
         {"purchased_on": "2026-10-05"},  # amount なし
         {"purchased_on": "2026-10-05", "amount": -1},
         {"purchased_on": "2026-13-01", "amount": 2200},
+        # 項目名の打ち間違い
+        {"purchased_on": "2026-10-05", "amount": 2200, "stor": "テスト書店"},
     ],
 )
 def test_invalid_payload_returns_422_and_keeps_purchase(
