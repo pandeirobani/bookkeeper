@@ -9,27 +9,16 @@ describe("toBookInput", () => {
     expect(toBookInput(values)).toEqual({ ...values, list_price: null });
   });
 
+  // 変換の細かい場合分けは utils/input.test.ts で確かめる
   it.each([
+    ["１９８０", 1980],
     ["", null],
-    ["  ", null],
-    ["1980", 1980],
-    ["１９８０", 1980], // 全角数字
-    [" 1980 ", 1980],
-    ["0", 0],
-  ])("定価 %j は %j として送る", (listPrice, expected) => {
+    ["千円", "千円"],
+  ])("定価 %j は整数の入力欄として変換し、%j として送る", (listPrice, expected) => {
     const values = { ...EMPTY_BOOK_FORM_VALUES, list_price: listPrice };
 
     expect(toBookInput(values).list_price).toBe(expected);
   });
-
-  it.each(["千円", "1,980", "19.8", "-1"])(
-    "定価 %j は数字だけではないので、サーバーのエラーを出すため文字列のまま送る",
-    (listPrice) => {
-      const values = { ...EMPTY_BOOK_FORM_VALUES, list_price: listPrice };
-
-      expect(toBookInput(values).list_price).toBe(listPrice);
-    },
-  );
 });
 
 describe("toBookFormValues", () => {
