@@ -7,6 +7,7 @@ APIのエラーは、ステータスコードによらず常に次の形で返�
 
 - 入力エラー（422）：FastAPI標準の形のまま、msg だけを日本語に置き換える
 - アプリが出すエラー（404・409など）：api_error で同じ形にする
+- FastAPI・Starletteが出すエラー（存在しないURLなど）：http_exception_handler で包む
 """
 
 from collections.abc import Mapping, Sequence
@@ -16,6 +17,7 @@ from fastapi import HTTPException, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 # 項目名の日本語。ここにない項目は項目名をそのまま使う
 FIELD_LABELS = {
@@ -58,6 +60,32 @@ def api_error(
     if ctx is not None:
         error["ctx"] = dict(ctx)
     return HTTPException(status_code=status_code, detail=[error])
+
+
+# FastAPI・Starletteが出すエラーの英語のメッセージの日本語。
+# ここにないステータスは、元のメッセージをそのまま使う
+_HTTP_ERROR_MESSAGES = {
+    status.HTTP_404_NOT_FOUND: "指定したURLは見つかりません",
+    status.HTTP_405_METHOD_NOT_ALLOWED: "このURLでは、このメソッドは使えません",
+}
+
+
+async def http_exception_handler(
+    request: Request, exc: StarletteHTTPException
+) -> JSONResponse:
+    """detail が文字列のエラーを、api_error と同じ配列の形に包む。
+
+    api_error で作ったエラーは detail がすでに配列なので、そのまま返す
+    """
+    if isinstance(exc.detail, list):
+        detail: object = exc.detail
+    else:
+        msg = _HTTP_ERROR_MESSAGES.get(exc.status_code, str(exc.detail))
+        detail = [{"type": "http_error", "loc": [], "msg": msg}]
+    # 405 の Allow ヘッダーなど、エラーに付いたヘッダーは残す
+    return JSONResponse(
+        status_code=exc.status_code, content={"detail": detail}, headers=exc.headers
+    )
 
 
 _INT_TYPES = {"int_type", "int_parsing", "int_parsing_size", "int_from_float"}
