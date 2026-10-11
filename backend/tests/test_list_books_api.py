@@ -7,6 +7,9 @@ from sqlalchemy.orm import Session
 
 from app.models import Book
 
+# テストで登録する本のISBN-13
+ISBN13 = "9784003101018"
+
 # --- 正常系 ---
 
 
@@ -21,7 +24,7 @@ def test_list_books_returns_all_fields(client: TestClient):
     created = client.post(
         "/api/books",
         json={
-            "isbn": "9784003101018",
+            "isbn": ISBN13,
             "title": "テスト書籍",
             "author": "著者A,著者B",
             "publisher": "テスト出版",

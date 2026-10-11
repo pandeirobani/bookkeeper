@@ -9,8 +9,17 @@ from sqlalchemy.orm import Session
 
 from app.models import Book, ReadingRecord
 
+# 同じ本を ISBN-13 と ISBN-10 で表した値
+ISBN13 = "9784003101018"
+ISBN10 = "4003101014"
+# ISBN13 のチェックディジット（末尾の桁）だけを変えた誤った値
+ISBN13_WRONG_CHECK_DIGIT = "9784003101019"
+# 別の本。ハイフン入りのISBN-10（末尾がX）と、それを変換したISBN-13
+OTHER_ISBN10_WITH_HYPHENS = "4-87311-778-X"
+OTHER_ISBN13 = "9784873117782"
+
 ALL_FIELDS = {
-    "isbn": "9784003101018",
+    "isbn": ISBN13,
     "title": "更新後の書名",
     "author": "著者A,著者B",
     "publisher": "テスト出版",
@@ -50,7 +59,7 @@ def test_update_book_saves_to_db(client: TestClient, session: Session):
     book = session.get(Book, created["id"])
     assert book is not None
     assert book.title == "更新後の書名"
-    assert book.isbn == "9784003101018"
+    assert book.isbn == ISBN13
 
 
 def test_update_book_keeps_id_and_created_at(client: TestClient):
@@ -63,7 +72,7 @@ def test_update_book_keeps_id_and_created_at(client: TestClient):
 
 
 def test_omitted_fields_become_null(client: TestClient):
-    created = create_book(client, isbn="9784003101018", author="著者A", list_price=1980)
+    created = create_book(client, isbn=ISBN13, author="著者A", list_price=1980)
 
     response = client.put(f"/api/books/{created['id']}", json={"title": "書名だけ"})
 
@@ -75,11 +84,11 @@ def test_omitted_fields_become_null(client: TestClient):
 
 
 def test_update_book_with_its_own_isbn(client: TestClient):
-    created = create_book(client, isbn="9784003101018")
+    created = create_book(client, isbn=ISBN13)
 
     response = client.put(
         f"/api/books/{created['id']}",
-        json={"isbn": "9784003101018", "title": "書名だけ変更"},
+        json={"isbn": ISBN13, "title": "書名だけ変更"},
     )
 
     assert response.status_code == 200
@@ -127,15 +136,15 @@ def test_isbn10_with_hyphens_is_saved_as_isbn13(client: TestClient):
 
     response = client.put(
         f"/api/books/{created['id']}",
-        json={"isbn": "4-87311-778-X", "title": "テスト書籍"},
+        json={"isbn": OTHER_ISBN10_WITH_HYPHENS, "title": "テスト書籍"},
     )
 
     assert response.status_code == 200
-    assert response.json()["isbn"] == "9784873117782"
+    assert response.json()["isbn"] == OTHER_ISBN13
 
 
 def test_blank_strings_are_saved_as_null(client: TestClient):
-    created = create_book(client, isbn="9784003101018", author="著者A")
+    created = create_book(client, isbn=ISBN13, author="著者A")
 
     response = client.put(
         f"/api/books/{created['id']}",
@@ -159,27 +168,27 @@ def test_blank_strings_are_saved_as_null(client: TestClient):
 
 
 def test_isbn_of_another_book_returns_409(client: TestClient, session: Session):
-    create_book(client, isbn="9784003101018")
-    target = create_book(client, isbn="9784873117782")
+    create_book(client, isbn=ISBN13)
+    target = create_book(client, isbn=OTHER_ISBN13)
 
     response = client.put(
         f"/api/books/{target['id']}",
-        json={"isbn": "9784003101018", "title": "別の書名"},
+        json={"isbn": ISBN13, "title": "別の書名"},
     )
 
     assert response.status_code == 409
     book = session.get(Book, target["id"])
     assert book is not None
-    assert book.isbn == "9784873117782"
+    assert book.isbn == OTHER_ISBN13
     assert book.title == "更新前の書名"
 
 
 def test_isbn10_of_another_book_is_detected_as_duplicate(client: TestClient):
-    create_book(client, isbn="9784003101018")
+    create_book(client, isbn=ISBN13)
     target = create_book(client)
 
     response = client.put(
-        f"/api/books/{target['id']}", json={"isbn": "4003101014", "title": "書名"}
+        f"/api/books/{target['id']}", json={"isbn": ISBN10, "title": "書名"}
     )
 
     assert response.status_code == 409
@@ -210,7 +219,7 @@ def test_update_book_with_non_integer_id_returns_422(client: TestClient):
         {"title": "テスト書籍", "list_price": -1},
         {"title": "テスト書籍", "list_price": 10_000_001},  # 上限超え
         {"title": "テスト書籍", "list_price": 10**20},  # SQLiteの整数の範囲外
-        {"title": "テスト書籍", "isbn": "9784003101019"},  # チェックディジット違い
+        {"title": "テスト書籍", "isbn": ISBN13_WRONG_CHECK_DIGIT},
         {"title": "テスト書籍", "isbn": "abc"},
         {"title": "テスト書籍", "auther": "著者A"},  # 項目名の打ち間違い
         {"title": "テスト書籍", "disposed_on": "2026-10-10"},  # 書誌情報ではない

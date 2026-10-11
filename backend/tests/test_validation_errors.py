@@ -6,6 +6,8 @@ from fastapi.testclient import TestClient
 from app.errors import to_japanese_message
 
 PURCHASE = {"purchased_on": "2026-10-01", "amount": 1980}
+# チェックディジット（末尾の桁）が誤ったISBN-13
+ISBN13_WRONG_CHECK_DIGIT = "9784003101019"
 
 
 def create_book(client: TestClient) -> int:
@@ -71,7 +73,7 @@ def create_book(client: TestClient) -> int:
             "書名を入力してください",
         ),
         (
-            {"title": "テスト書籍", "isbn": "9784003101019"},
+            {"title": "テスト書籍", "isbn": ISBN13_WRONG_CHECK_DIGIT},
             "value_error",
             ["body", "isbn"],
             "ISBNが正しくありません。番号に入力ミスがないか確認してください",
@@ -233,13 +235,13 @@ def test_other_fields_of_error_are_kept(client: TestClient):
 
 def test_invalid_isbn_input_is_returned_as_entered(client: TestClient):
     # メッセージには入力値を入れないので、画面で必要なら input から取る
-    response = client.post(
-        "/api/books", json={"title": "テスト書籍", "isbn": "978-4-00-310101-9"}
-    )
+    # 正規化前の形（ハイフン入り）のまま返ることを確かめるため、ハイフン入りで送る
+    isbn = "978-4-00-310101-9"
+    response = client.post("/api/books", json={"title": "テスト書籍", "isbn": isbn})
 
     [error] = response.json()["detail"]
-    assert error["input"] == "978-4-00-310101-9"
-    assert "978-4-00-310101-9" not in error["msg"]
+    assert error["input"] == isbn
+    assert isbn not in error["msg"]
 
 
 # --- 対応表にないエラー（関数を直接呼んで確認） ---

@@ -9,8 +9,11 @@ from sqlalchemy.orm import Session
 
 from app.models import Book, Purchase, ReadingRecord
 
+# テストで登録する本のISBN-13
+ISBN13 = "9784003101018"
+
 BOOK_FIELDS = {
-    "isbn": "9784003101018",
+    "isbn": ISBN13,
     "title": "テスト書籍",
     "author": "著者A,著者B",
     "publisher": "テスト出版",

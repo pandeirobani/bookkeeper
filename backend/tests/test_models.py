@@ -14,6 +14,8 @@ from app.models import Book, Purchase, ReadingRecord
 
 INITIAL_REVISION = "083cd060d880"
 TABLES = ("books", "purchases", "reading_records")
+# DBに直接入れるのでAPIの検証は通らない。ISBNとして正しい値でなくてよい
+ISBN = "9784000000001"
 
 
 def add_book(session: Session, **kwargs: object) -> Book:
@@ -115,7 +117,7 @@ def test_downgrade_keeps_existing_data(db_url: str, alembic_config: Config):
 
 
 def test_book_created_at_is_set_automatically(session: Session):
-    book = add_book(session, isbn="9784000000001")
+    book = add_book(session, isbn=ISBN)
 
     assert book.created_at is not None
 
@@ -128,10 +130,10 @@ def test_books_without_isbn_can_be_added(session: Session):
 
 
 def test_duplicate_isbn_is_rejected(session: Session):
-    add_book(session, isbn="9784000000001")
+    add_book(session, isbn=ISBN)
 
     with pytest.raises(IntegrityError):
-        add_book(session, isbn="9784000000001")
+        add_book(session, isbn=ISBN)
 
 
 def test_negative_list_price_is_rejected(session: Session):

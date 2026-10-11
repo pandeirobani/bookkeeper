@@ -9,6 +9,15 @@ from sqlalchemy.orm import Session
 
 from app.models import Book, ReadingRecord
 
+# 同じ本を ISBN-13 と ISBN-10 で表した値
+ISBN13 = "9784003101018"
+ISBN10 = "4003101014"
+# ISBN13 のチェックディジット（末尾の桁）だけを変えた誤った値
+ISBN13_WRONG_CHECK_DIGIT = "9784003101019"
+# 別の本。ハイフン入りのISBN-10（末尾がX）と、それを変換したISBN-13
+OTHER_ISBN10_WITH_HYPHENS = "4-87311-778-X"
+OTHER_ISBN13 = "9784873117782"
+
 # --- 正常系 ---
 
 
@@ -16,7 +25,7 @@ def test_create_book_with_all_fields(client: TestClient):
     response = client.post(
         "/api/books",
         json={
-            "isbn": "9784003101018",
+            "isbn": ISBN13,
             "title": "テスト書籍",
             "author": "著者A,著者B",
             "publisher": "テスト出版",
@@ -31,7 +40,7 @@ def test_create_book_with_all_fields(client: TestClient):
     assert isinstance(body["id"], int)
     assert body["created_at"] is not None
     assert {k: v for k, v in body.items() if k not in ("id", "created_at")} == {
-        "isbn": "9784003101018",
+        "isbn": ISBN13,
         "title": "テスト書籍",
         "author": "著者A,著者B",
         "publisher": "テスト出版",
@@ -100,11 +109,11 @@ def test_create_book_also_creates_unread_reading_record(
 
 def test_isbn10_with_hyphens_is_saved_as_isbn13(client: TestClient):
     response = client.post(
-        "/api/books", json={"isbn": "4-87311-778-X", "title": "テスト書籍"}
+        "/api/books", json={"isbn": OTHER_ISBN10_WITH_HYPHENS, "title": "テスト書籍"}
     )
 
     assert response.status_code == 201
-    assert response.json()["isbn"] == "9784873117782"
+    assert response.json()["isbn"] == OTHER_ISBN13
 
 
 def test_blank_strings_are_saved_as_null(client: TestClient):
@@ -144,18 +153,16 @@ def test_books_without_isbn_can_be_created_multiple_times(client: TestClient):
 
 
 def test_duplicate_isbn_returns_409(client: TestClient, session: Session):
-    client.post("/api/books", json={"isbn": "9784003101018", "title": "1冊目"})
-    response = client.post(
-        "/api/books", json={"isbn": "9784003101018", "title": "2冊目"}
-    )
+    client.post("/api/books", json={"isbn": ISBN13, "title": "1冊目"})
+    response = client.post("/api/books", json={"isbn": ISBN13, "title": "2冊目"})
 
     assert response.status_code == 409
     assert session.query(Book).count() == 1
 
 
 def test_same_book_as_isbn10_is_detected_as_duplicate(client: TestClient):
-    client.post("/api/books", json={"isbn": "9784003101018", "title": "1冊目"})
-    response = client.post("/api/books", json={"isbn": "4003101014", "title": "2冊目"})
+    client.post("/api/books", json={"isbn": ISBN13, "title": "1冊目"})
+    response = client.post("/api/books", json={"isbn": ISBN10, "title": "2冊目"})
 
     assert response.status_code == 409
 
@@ -172,7 +179,7 @@ def test_same_book_as_isbn10_is_detected_as_duplicate(client: TestClient):
         {"title": "テスト書籍", "list_price": -1},
         {"title": "テスト書籍", "list_price": 10_000_001},  # 上限超え
         {"title": "テスト書籍", "list_price": 10**20},  # SQLiteの整数の範囲外
-        {"title": "テスト書籍", "isbn": "9784003101019"},  # チェックディジット違い
+        {"title": "テスト書籍", "isbn": ISBN13_WRONG_CHECK_DIGIT},
         {"title": "テスト書籍", "isbn": "abc"},
         {"title": "テスト書籍", "auther": "著者A"},  # 項目名の打ち間違い
         {"title": "テスト書籍", "disposed_on": "2026-10-10"},  # 書誌情報ではない
@@ -190,7 +197,7 @@ def test_invalid_payload_returns_422(
 
 def test_invalid_isbn_error_message_is_returned(client: TestClient):
     response = client.post(
-        "/api/books", json={"title": "テスト書籍", "isbn": "9784003101019"}
+        "/api/books", json={"title": "テスト書籍", "isbn": ISBN13_WRONG_CHECK_DIGIT}
     )
 
     assert response.status_code == 422
@@ -200,7 +207,8 @@ def test_invalid_isbn_error_message_is_returned(client: TestClient):
 
 
 def test_isbn_with_non_ascii_digits_is_rejected(client: TestClient, session: Session):
-    # 半角の 9784003101018 と同じ値として重複チェックできないため、保存させない
+    # ISBN13 の一部の桁をアラビア・インド数字にした値。
+    # ISBN13 と同じ値として重複チェックできないため、保存させない
     response = client.post(
         "/api/books", json={"title": "テスト書籍", "isbn": "978٤٠٠٣١٠١٠١8"}
     )
