@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import type { Book } from "../api/books.ts";
+import { type ApiError, toApiError } from "../api/client.ts";
 import {
   type Purchase,
   type PurchaseInput,
   createPurchase,
+  deletePurchase,
   updatePurchase,
 } from "../api/purchases.ts";
 import type { ApiData } from "../hooks/useApiData.ts";
@@ -17,12 +19,69 @@ import SuccessMessage from "./SuccessMessage.tsx";
 import formStyles from "./form.module.css";
 import { newPurchaseFormValues, toPurchaseFormValues } from "./purchaseFormValues.ts";
 
+type DeleteConfirmationProps = {
+  /** 表の列の数。確認の行を表の幅いっぱいに広げる */
+  colSpan: number;
+  onDelete: () => Promise<void>;
+  onCancel: () => void;
+};
+
+/** 購入記録の削除の確認。削除する行のすぐ下に、表の幅いっぱいの行として出す */
+function DeleteConfirmationRow({ colSpan, onDelete, onCancel }: DeleteConfirmationProps) {
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<ApiError | null>(null);
+
+  async function handleDelete() {
+    setDeleting(true);
+    setError(null);
+    try {
+      await onDelete();
+    } catch (caught) {
+      setError(toApiError(caught));
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <tr className={styles.confirmRow}>
+      <td colSpan={colSpan}>
+        <ErrorMessage messages={error?.details.map((detail) => detail.msg) ?? []} />
+        <p>この購入記録を削除しますか？ 書籍費の集計からも消え、元に戻せません。</p>
+        <div className={formStyles.actions}>
+          <button
+            type="button"
+            disabled={deleting}
+            onClick={() => void handleDelete()}
+            className={formStyles.danger}
+          >
+            {deleting ? "削除中…" : "削除する"}
+          </button>
+          <button
+            type="button"
+            disabled={deleting}
+            onClick={onCancel}
+            className={formStyles.secondary}
+          >
+            やめる
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 type TableProps = {
   purchases: Purchase[];
   onEdit: (purchase: Purchase) => void;
+  /** 購入記録を削除する。失敗したときは例外を投げると、確認の行にエラーを表示する */
+  onDelete: (purchase: Purchase) => Promise<void>;
 };
 
-function PurchaseTable({ purchases, onEdit }: TableProps) {
+const COLUMN_COUNT = 5;
+
+function PurchaseTable({ purchases, onEdit, onDelete }: TableProps) {
+  // 削除の確認を開いている購入記録のID
+  const [confirmingId, setConfirmingId] = useState<number | null>(null);
   const total = purchases.reduce((sum, purchase) => sum + purchase.amount, 0);
   return (
     <>
@@ -44,23 +103,40 @@ function PurchaseTable({ purchases, onEdit }: TableProps) {
           {purchases.map((purchase) => {
             const date = formatDate(purchase.purchased_on);
             return (
-              <tr key={purchase.id}>
-                <td className={styles.date}>{date}</td>
-                <td className={styles.amount}>{formatYen(purchase.amount)}</td>
-                <td>{purchase.store}</td>
-                <td className={styles.memo}>{purchase.memo}</td>
-                <td className={styles.actions}>
-                  {/* 行ごとに同じ「編集」が並ぶので、読み上げでは購入日も伝える */}
-                  <button
-                    type="button"
-                    onClick={() => onEdit(purchase)}
-                    aria-label={`${date} の購入記録を編集`}
-                    className={styles.linkButton}
-                  >
-                    編集
-                  </button>
-                </td>
-              </tr>
+              <Fragment key={purchase.id}>
+                <tr>
+                  <td className={styles.date}>{date}</td>
+                  <td className={styles.amount}>{formatYen(purchase.amount)}</td>
+                  <td>{purchase.store}</td>
+                  <td className={styles.memo}>{purchase.memo}</td>
+                  <td className={styles.actions}>
+                    {/* 行ごとに同じ「編集」が並ぶので、読み上げでは購入日も伝える */}
+                    <button
+                      type="button"
+                      onClick={() => onEdit(purchase)}
+                      aria-label={`${date} の購入記録を編集`}
+                      className={styles.linkButton}
+                    >
+                      編集
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingId(purchase.id)}
+                      aria-label={`${date} の購入記録を削除`}
+                      className={styles.linkButton}
+                    >
+                      削除
+                    </button>
+                  </td>
+                </tr>
+                {confirmingId === purchase.id && (
+                  <DeleteConfirmationRow
+                    colSpan={COLUMN_COUNT}
+                    onDelete={() => onDelete(purchase)}
+                    onCancel={() => setConfirmingId(null)}
+                  />
+                )}
+              </Fragment>
             );
           })}
         </tbody>
@@ -113,6 +189,16 @@ function PurchasesSection({ book, purchases, onBookChanged }: Props) {
     }
   }
 
+  async function handleDelete(purchase: Purchase) {
+    await deletePurchase(purchase.id);
+    // 削除した購入記録を編集していたら、そのフォームも閉じる
+    setOpenForm((form) =>
+      form?.kind === "edit" && form.purchase.id === purchase.id ? null : form,
+    );
+    purchases.reload();
+    setMessage("購入記録を削除しました");
+  }
+
   async function handleUpdate(purchaseId: number, input: PurchaseInput) {
     // 購入記録の更新では、手放した日は変わらない
     await updatePurchase(purchaseId, input);
@@ -138,6 +224,7 @@ function PurchasesSection({ book, purchases, onBookChanged }: Props) {
           <PurchaseTable
             purchases={purchases.data}
             onEdit={(purchase) => open({ kind: "edit", purchase })}
+            onDelete={handleDelete}
           />
         ))}
       <div className={styles.formArea}>

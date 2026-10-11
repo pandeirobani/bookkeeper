@@ -78,3 +78,13 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* 削除の確認の行。どの行を削除するのかがわかるよう、背景で区別する */
+.table .confirmRow td {
+  background: var(--error-bg);
+}
+
+.confirmRow p {
+  margin-bottom: 8px;
+  color: var(--text-h);
+}

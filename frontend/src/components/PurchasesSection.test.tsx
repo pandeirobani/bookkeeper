@@ -3,13 +3,14 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Book } from "../api/books.ts";
 import { ApiError } from "../api/client.ts";
-import { type Purchase, createPurchase, updatePurchase } from "../api/purchases.ts";
+import { type Purchase, createPurchase, deletePurchase, updatePurchase } from "../api/purchases.ts";
 import type { ApiData, ApiDataState } from "../hooks/useApiData.ts";
 import { makeBook, makePurchase } from "../test/fixtures.ts";
 import PurchasesSection from "./PurchasesSection.tsx";
 
 vi.mock("../api/purchases.ts", () => ({
   createPurchase: vi.fn(),
+  deletePurchase: vi.fn(),
   updatePurchase: vi.fn(),
 }));
 
@@ -272,6 +273,78 @@ describe("PurchasesSection", () => {
       expect(await screen.findByText("金額は10000000以下で入力してください")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "保存する" })).toBeEnabled();
       expect(purchases.reload).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("削除", () => {
+    const PURCHASES: ApiDataState<Purchase[]> = {
+      status: "success",
+      data: [
+        makePurchase({ id: 2, purchased_on: "2026-10-05", amount: 550 }),
+        makePurchase({ id: 1, purchased_on: "2026-10-01", amount: 1078 }),
+      ],
+    };
+
+    afterEach(() => {
+      vi.mocked(deletePurchase).mockReset();
+    });
+
+    it("行の「削除」で確認を出し、「削除する」で削除して取り直す", async () => {
+      vi.mocked(deletePurchase).mockResolvedValue();
+      const { user, purchases } = renderSection(PURCHASES);
+
+      await user.click(screen.getByRole("button", { name: "2026/10/01 の購入記録を削除" }));
+      expect(screen.getByText(/この購入記録を削除しますか？/)).toHaveTextContent(
+        "書籍費の集計からも消え",
+      );
+      await user.click(screen.getByRole("button", { name: "削除する" }));
+
+      expect(deletePurchase).toHaveBeenCalledWith(1);
+      expect(await screen.findByRole("status")).toHaveTextContent("購入記録を削除しました");
+      expect(purchases.reload).toHaveBeenCalledTimes(1);
+    });
+
+    it("「やめる」で確認を閉じ、削除しない", async () => {
+      const { user } = renderSection(PURCHASES);
+
+      await user.click(screen.getByRole("button", { name: "2026/10/01 の購入記録を削除" }));
+      await user.click(screen.getByRole("button", { name: "やめる" }));
+
+      expect(screen.queryByText(/この購入記録を削除しますか？/)).not.toBeInTheDocument();
+      expect(deletePurchase).not.toHaveBeenCalled();
+    });
+
+    it("削除に失敗したら確認の中にエラーを表示し、もう一度押せるようにする", async () => {
+      vi.mocked(deletePurchase).mockRejectedValue(
+        new ApiError(404, [
+          {
+            type: "not_found",
+            loc: ["path", "purchase_id"],
+            msg: "ID 1 の購入記録は見つかりません",
+          },
+        ]),
+      );
+      const { user, purchases } = renderSection(PURCHASES);
+
+      await user.click(screen.getByRole("button", { name: "2026/10/01 の購入記録を削除" }));
+      await user.click(screen.getByRole("button", { name: "削除する" }));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("ID 1 の購入記録は見つかりません");
+      expect(screen.getByRole("button", { name: "削除する" })).toBeEnabled();
+      expect(purchases.reload).not.toHaveBeenCalled();
+    });
+
+    it("編集中の購入記録を削除したら、編集のフォームも閉じる", async () => {
+      vi.mocked(deletePurchase).mockResolvedValue();
+      const { user } = renderSection(PURCHASES);
+
+      await user.click(screen.getByRole("button", { name: "2026/10/01 の購入記録を編集" }));
+      await user.click(screen.getByRole("button", { name: "2026/10/01 の購入記録を削除" }));
+      await user.click(screen.getByRole("button", { name: "削除する" }));
+
+      await screen.findByRole("status");
+      expect(screen.queryByRole("button", { name: "保存する" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "購入記録を追加" })).toBeInTheDocument();
     });
   });
 });
