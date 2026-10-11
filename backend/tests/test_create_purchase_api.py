@@ -125,18 +125,63 @@ def test_future_purchased_on_is_allowed(client: TestClient):
     assert response.status_code == 201
 
 
-def test_create_purchase_does_not_change_disposed_on(
-    client: TestClient, session: Session
-):
-    # 手放した日を戻すかは利用者が決めるので、購入の追加では変えない
-    book_id = create_book(client)
+def dispose_book(session: Session, book_id: int, disposed_on: date) -> Book:
     book = session.get(Book, book_id)
     assert book is not None
-    book.disposed_on = date(2026, 9, 1)
+    book.disposed_on = disposed_on
     session.commit()
+    return book
 
-    client.post(f"/api/books/{book_id}/purchases", json=ALL_FIELDS)
 
+def test_purchase_after_disposal_brings_book_back(client: TestClient, session: Session):
+    # 手放した日より後の購入は買い直しなので、手元に戻す
+    book_id = create_book(client)
+    book = dispose_book(session, book_id, date(2026, 9, 1))
+
+    response = client.post(
+        f"/api/books/{book_id}/purchases",
+        json={**ALL_FIELDS, "purchased_on": "2026-09-02"},
+    )
+
+    assert response.status_code == 201
+    session.refresh(book)
+    assert book.disposed_on is None
+
+
+@pytest.mark.parametrize(
+    "purchased_on",
+    [
+        "2026-08-31",  # 手放す前の購入を後から記録した
+        "2026-09-01",  # 同じ日は買い直しか手放す前の購入か区別できないので変えない
+    ],
+)
+def test_purchase_on_or_before_disposal_keeps_disposed_on(
+    client: TestClient, session: Session, purchased_on: str
+):
+    book_id = create_book(client)
+    book = dispose_book(session, book_id, date(2026, 9, 1))
+
+    response = client.post(
+        f"/api/books/{book_id}/purchases",
+        json={**ALL_FIELDS, "purchased_on": purchased_on},
+    )
+
+    assert response.status_code == 201
+    session.refresh(book)
+    assert book.disposed_on == date(2026, 9, 1)
+
+
+def test_invalid_purchase_keeps_disposed_on(client: TestClient, session: Session):
+    # 購入記録が保存されなかったときは、手元にも戻さない
+    book_id = create_book(client)
+    book = dispose_book(session, book_id, date(2026, 9, 1))
+
+    response = client.post(
+        f"/api/books/{book_id}/purchases",
+        json={**ALL_FIELDS, "purchased_on": "2026-09-02", "amount": -1},
+    )
+
+    assert response.status_code == 422
     session.refresh(book)
     assert book.disposed_on == date(2026, 9, 1)
 

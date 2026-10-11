@@ -37,8 +37,12 @@ def list_purchases(book_id: IdPath, session: SessionDep) -> list[PurchaseRespons
 def create_purchase(
     book_id: IdPath, payload: PurchaseCreate, session: SessionDep
 ) -> PurchaseResponse:
-    """本に購入記録を追加する。手放した日（disposed_on）は変えない"""
-    get_book_or_404(session, book_id)
+    """本に購入記録を追加する。手放した日より後の購入なら、本を手元に戻す"""
+    book = get_book_or_404(session, book_id)
+    # 手放した日より後に買ったなら買い直しなので、disposed_on をNULLに戻す。
+    # 手放した日以前の購入は、過去の購入を後から記録したものとして扱い、変えない
+    if book.disposed_on is not None and payload.purchased_on > book.disposed_on:
+        book.disposed_on = None
 
     purchase = Purchase(book_id=book_id, **payload.model_dump())
     session.add(purchase)

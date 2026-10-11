@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.models import Purchase
+from app.models import Book, Purchase
 
 ALL_FIELDS = {
     "purchased_on": "2026-10-05",
@@ -106,6 +106,24 @@ def test_update_purchase_does_not_change_other_purchases(
     assert purchase is not None
     assert purchase.amount == 1980
     assert purchase.store == "更新前の書店"
+
+
+def test_update_purchase_does_not_change_disposed_on(
+    client: TestClient, session: Session
+):
+    # 手元に戻すのは購入記録の追加のときだけ。日付の修正では戻さない
+    created = create_purchase(client)
+    book = session.get(Book, created["book_id"])
+    assert book is not None
+    book.disposed_on = date(2026, 10, 3)
+    session.commit()
+
+    # 購入日を手放した日（10/3）より後の 10/5 に変える
+    response = client.put(f"/api/purchases/{created['id']}", json=ALL_FIELDS)
+
+    assert response.status_code == 200
+    session.refresh(book)
+    assert book.disposed_on == date(2026, 10, 3)
 
 
 # --- 入力値の正規化 ---
