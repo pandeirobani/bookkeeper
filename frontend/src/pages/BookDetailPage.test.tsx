@@ -14,6 +14,10 @@ vi.mock("../api/readingRecords.ts", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api/readingRecords.ts")>();
   return { ...actual, fetchReadingRecord: vi.fn(() => new Promise(() => {})) };
 });
+// 購入記録の欄も、それぞれのテストで確かめる
+vi.mock("../api/purchases.ts", () => ({
+  fetchPurchases: vi.fn(() => new Promise(() => {})),
+}));
 
 function renderPage(path = "/books/1") {
   render(

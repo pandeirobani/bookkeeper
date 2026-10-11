@@ -1,9 +1,9 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import { type Book, deleteBook } from "../api/books.ts";
 import { type ApiError, toApiError } from "../api/client.ts";
-import { type Purchase, fetchPurchases } from "../api/purchases.ts";
-import { useApiData } from "../hooks/useApiData.ts";
+import type { Purchase } from "../api/purchases.ts";
+import type { ApiDataState } from "../hooks/useApiData.ts";
 import { withFlashMessage } from "../hooks/useFlashMessage.ts";
 import { formatYen } from "../utils/format.ts";
 import DetailSection from "./DetailSection.tsx";
@@ -19,10 +19,15 @@ function purchasesSummary(purchases: Purchase[]): string {
   return `購入記録 ${purchases.length}件（合計 ${formatYen(total)}）も一緒に削除され、書籍費の集計からも消えます。`;
 }
 
+type Props = {
+  book: Book;
+  /** 本の購入記録。詳細画面で取得したものを受け取る */
+  purchases: ApiDataState<Purchase[]>;
+};
+
 /** 削除の確認。一緒に消える購入記録の件数と合計金額を示してから削除する */
-function DeleteConfirmation({ book, onCancel }: { book: Book; onCancel: () => void }) {
+function DeleteConfirmation({ book, purchases, onCancel }: Props & { onCancel: () => void }) {
   const navigate = useNavigate();
-  const purchases = useApiData(useCallback(() => fetchPurchases(book.id), [book.id]));
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
 
@@ -71,13 +76,17 @@ function DeleteConfirmation({ book, onCancel }: { book: Book; onCancel: () => vo
 }
 
 /** 詳細画面の「削除」の欄 */
-function DeleteSection({ book }: { book: Book }) {
+function DeleteSection({ book, purchases }: Props) {
   const [confirming, setConfirming] = useState(false);
 
   return (
     <DetailSection title="削除">
       {confirming ? (
-        <DeleteConfirmation book={book} onCancel={() => setConfirming(false)} />
+        <DeleteConfirmation
+          book={book}
+          purchases={purchases}
+          onCancel={() => setConfirming(false)}
+        />
       ) : (
         <div className={styles.form}>
           <p>

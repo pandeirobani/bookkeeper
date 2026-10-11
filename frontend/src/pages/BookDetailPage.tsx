@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { Link, useParams } from "react-router";
 import { type Book, fetchBook } from "../api/books.ts";
+import { fetchPurchases } from "../api/purchases.ts";
 import BookCover from "../components/BookCover.tsx";
 import DeleteSection from "../components/DeleteSection.tsx";
 import DisposalSection from "../components/DisposalSection.tsx";
@@ -41,6 +42,8 @@ function BookInfo({ book }: { book: Book }) {
 function BookDetail({ bookId }: { bookId: number }) {
   const message = useFlashMessage();
   const book = useApiData(useCallback(() => fetchBook(bookId), [bookId]));
+  // 購入記録の欄と削除の欄（一緒に消える件数と金額）の両方で使うので、ここで1回だけ取得する
+  const purchases = useApiData(useCallback(() => fetchPurchases(bookId), [bookId]));
 
   if (book.status === "loading") {
     return <p>読み込み中…</p>;
@@ -66,7 +69,7 @@ function BookDetail({ bookId }: { bookId: number }) {
       </div>
       <ReadingRecordSection bookId={bookId} />
       <DisposalSection book={book.data} onChanged={book.reload} />
-      <DeleteSection book={book.data} />
+      <DeleteSection book={book.data} purchases={purchases} />
     </>
   );
 }
