@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router";
 import Layout from "./components/Layout.tsx";
 import BookCreatePage from "./pages/BookCreatePage.tsx";
 import BookDetailPage from "./pages/BookDetailPage.tsx";
+import BookEditPage from "./pages/BookEditPage.tsx";
 import BookListPage from "./pages/BookListPage.tsx";
 import NotFoundPage from "./pages/NotFoundPage.tsx";
 
@@ -13,6 +14,7 @@ function App() {
         <Route index element={<BookListPage />} />
         <Route path="books/new" element={<BookCreatePage />} />
         <Route path="books/:bookId" element={<BookDetailPage />} />
+        <Route path="books/:bookId/edit" element={<BookEditPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

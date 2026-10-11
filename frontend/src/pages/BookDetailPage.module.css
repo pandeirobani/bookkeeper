@@ -5,6 +5,10 @@
   margin-bottom: 32px;
 }
 
+.editLink {
+  margin-top: 12px;
+}
+
 .info {
   display: grid;
   grid-template-columns: max-content 1fr;

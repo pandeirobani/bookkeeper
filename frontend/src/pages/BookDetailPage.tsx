@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useParams } from "react-router";
+import { Link, useParams } from "react-router";
 import { type Book, fetchBook } from "../api/books.ts";
 import BookCover from "../components/BookCover.tsx";
 import ErrorMessage from "../components/ErrorMessage.tsx";
@@ -53,6 +53,9 @@ function BookDetail({ bookId }: { bookId: number }) {
         <div>
           <h2>{book.data.title}</h2>
           <BookInfo book={book.data} />
+          <p className={styles.editLink}>
+            <Link to={`/books/${bookId}/edit`}>書誌情報を編集</Link>
+          </p>
         </div>
       </div>
     </>

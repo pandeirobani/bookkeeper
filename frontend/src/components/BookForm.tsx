@@ -1,5 +1,6 @@
 import { type FormEvent, type HTMLInputTypeAttribute, useEffect, useRef, useState } from "react";
-import type { BookInput } from "../api/books.ts";
+import { Link } from "react-router";
+import { type BookInput, findConflictingBookId } from "../api/books.ts";
 import { toApiError } from "../api/client.ts";
 import { type FieldErrors, splitFieldErrors } from "../api/fieldErrors.ts";
 import ErrorMessage from "./ErrorMessage.tsx";
@@ -43,6 +44,8 @@ type Props = {
   initialValues?: BookFormValues;
   submitLabel: string;
   submittingLabel: string;
+  /** 指定すると、送信ボタンの横に「キャンセル」のリンクを出す */
+  cancelTo?: string;
   /** 送信する。失敗したときは例外を投げると、エラーを入力欄ごとに表示する */
   onSubmit: (input: BookInput) => Promise<void>;
 };
@@ -52,10 +55,13 @@ function BookForm({
   initialValues = EMPTY_BOOK_FORM_VALUES,
   submitLabel,
   submittingLabel,
+  cancelTo,
   onSubmit,
 }: Props) {
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState<FieldErrors<BookField> | null>(null);
+  // ISBNが重複したときの、登録済みの本のID
+  const [conflictingBookId, setConflictingBookId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -68,10 +74,13 @@ function BookForm({
     event.preventDefault();
     setSubmitting(true);
     setErrors(null);
+    setConflictingBookId(null);
     try {
       await onSubmit(toBookInput(values));
     } catch (error) {
-      setErrors(splitFieldErrors(toApiError(error), BOOK_FIELDS));
+      const apiError = toApiError(error);
+      setErrors(splitFieldErrors(apiError, BOOK_FIELDS));
+      setConflictingBookId(findConflictingBookId(apiError));
       setSubmitting(false);
     }
   }
@@ -115,12 +124,20 @@ function BookForm({
                 {fieldErrors.join(" ")}
               </p>
             )}
+            {name === "isbn" && conflictingBookId !== null && (
+              <p className={styles.hint}>
+                <Link to={`/books/${conflictingBookId}`}>登録済みの本を見る</Link>
+              </p>
+            )}
           </div>
         );
       })}
-      <button type="submit" disabled={submitting} className={styles.submit}>
-        {submitting ? submittingLabel : submitLabel}
-      </button>
+      <div className={styles.actions}>
+        <button type="submit" disabled={submitting} className={styles.submit}>
+          {submitting ? submittingLabel : submitLabel}
+        </button>
+        {cancelTo !== undefined && <Link to={cancelTo}>キャンセル</Link>}
+      </div>
     </form>
   );
 }

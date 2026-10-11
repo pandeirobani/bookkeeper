@@ -51,8 +51,13 @@
   font-size: 14px;
 }
 
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .submit {
-  align-self: flex-start;
   padding: 8px 24px;
   font: inherit;
   color: #fff;

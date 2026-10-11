@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { apiRequest } from "./client.ts";
+import { type ApiError, apiRequest } from "./client.ts";
 
 // バックエンドの BookResponse（backend/app/schemas.py）と同じ形
 const bookSchema = z.object({
@@ -46,4 +46,20 @@ export function fetchBook(bookId: number): Promise<Book> {
 
 export function createBook(input: BookInput): Promise<Book> {
   return apiRequest("/books", bookSchema, { method: "POST", body: input });
+}
+
+/** 書誌情報を置き換える。手放した日と読書記録は変わらない */
+export function updateBook(bookId: number, input: BookInput): Promise<Book> {
+  return apiRequest(`/books/${bookId}`, bookSchema, { method: "PUT", body: input });
+}
+
+/** ISBNの重複（409）のエラーから、登録済みの本のIDを取り出す。重複のエラーでなければ null */
+export function findConflictingBookId(error: ApiError): number | null {
+  for (const detail of error.details) {
+    const bookId = detail.ctx?.book_id;
+    if (detail.type === "already_exists" && typeof bookId === "number") {
+      return bookId;
+    }
+  }
+  return null;
 }

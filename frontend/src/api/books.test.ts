@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "./client.ts";
-import { type BookInput, createBook, fetchBook, fetchBooks } from "./books.ts";
+import {
+  type BookInput,
+  createBook,
+  fetchBook,
+  fetchBooks,
+  findConflictingBookId,
+  updateBook,
+} from "./books.ts";
 
 const BOOK = {
   id: 1,
@@ -87,5 +94,45 @@ describe("fetchBook", () => {
       "/api/books/1",
       expect.objectContaining({ method: "GET" }),
     );
+  });
+});
+
+describe("updateBook", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("入力値を PUT /api/books/{id} に送り、更新した書籍を返す", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json(BOOK));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(updateBook(1, INPUT)).resolves.toEqual(BOOK);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/books/1",
+      expect.objectContaining({ method: "PUT", body: JSON.stringify(INPUT) }),
+    );
+  });
+});
+
+describe("findConflictingBookId", () => {
+  it("ISBNの重複のエラーから、登録済みの本のIDを返す", () => {
+    const error = new ApiError(409, [
+      {
+        type: "already_exists",
+        loc: ["body", "isbn"],
+        msg: "このISBNの本はすでに登録されています",
+        ctx: { book_id: 3 },
+      },
+    ]);
+
+    expect(findConflictingBookId(error)).toBe(3);
+  });
+
+  it("重複のエラーでなければ null を返す", () => {
+    const error = new ApiError(422, [
+      { type: "value_error", loc: ["body", "isbn"], msg: "ISBNが正しくありません" },
+    ]);
+
+    expect(findConflictingBookId(error)).toBeNull();
   });
 });

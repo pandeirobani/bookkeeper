@@ -1,4 +1,4 @@
-import type { BookInput } from "../api/books.ts";
+import type { Book, BookInput } from "../api/books.ts";
 
 export const BOOK_FIELDS = [
   "title",
@@ -24,6 +24,19 @@ export const EMPTY_BOOK_FORM_VALUES: BookFormValues = {
   list_price: "",
   cover_image_url: "",
 };
+
+/** 登録済みの本の値を、編集フォームの初期値にする。NULLは空欄にする */
+export function toBookFormValues(book: Book): BookFormValues {
+  return {
+    title: book.title,
+    isbn: book.isbn ?? "",
+    author: book.author ?? "",
+    publisher: book.publisher ?? "",
+    published_date: book.published_date ?? "",
+    list_price: book.list_price === null ? "" : String(book.list_price),
+    cover_image_url: book.cover_image_url ?? "",
+  };
+}
 
 /**
  * 定価の入力値を送る値にする。

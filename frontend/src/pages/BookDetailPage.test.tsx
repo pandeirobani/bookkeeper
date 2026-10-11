@@ -51,6 +51,10 @@ describe("BookDetailPage", () => {
       登録日: expect.stringMatching(/^2026\/10\/1[12]$/), // 表示する環境のタイムゾーンによる
     });
     expect(screen.getByRole("img", { name: "表紙" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "書誌情報を編集" })).toHaveAttribute(
+      "href",
+      "/books/12/edit",
+    );
   });
 
   it("値のない項目は「—」と表示する", async () => {

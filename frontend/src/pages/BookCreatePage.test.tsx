@@ -7,10 +7,11 @@ import { ApiError, type ApiErrorDetail } from "../api/client.ts";
 import BookCreatePage from "./BookCreatePage.tsx";
 import BookDetailPage from "./BookDetailPage.tsx";
 
-vi.mock("../api/books.ts", () => ({
-  createBook: vi.fn(),
-  fetchBook: vi.fn(),
-}));
+vi.mock("../api/books.ts", async (importOriginal) => {
+  // findConflictingBookId は本物を使う
+  const actual = await importOriginal<typeof import("../api/books.ts")>();
+  return { ...actual, createBook: vi.fn(), fetchBook: vi.fn() };
+});
 
 const BOOK: Book = {
   id: 1,
@@ -136,6 +137,10 @@ describe("BookCreatePage", () => {
 
     expect(await screen.findByLabelText("ISBN")).toHaveAccessibleDescription(
       "ハイフンや全角数字を含んでもかまいません。ISBN-10 も入力できます このISBNの本はすでに登録されています",
+    );
+    expect(screen.getByRole("link", { name: "登録済みの本を見る" })).toHaveAttribute(
+      "href",
+      "/books/3",
     );
   });
 
