@@ -46,6 +46,13 @@ class BookCreate(BaseModel):
         return _blank_to_none(value)
 
 
+class BookDisposalUpdate(BaseModel):
+    """手放した日の設定・解除のリクエスト。NULLで手元に戻す"""
+
+    # 送り忘れで手元に戻ってしまわないよう、NULLでも省略は許さない
+    disposed_on: date | None
+
+
 class BookResponse(BaseModel):
     """書籍のレスポンス"""
 

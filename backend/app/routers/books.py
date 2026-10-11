@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_session
 from app.models import Book, ReadingRecord
-from app.schemas import BookCreate, BookResponse
+from app.schemas import BookCreate, BookDisposalUpdate, BookResponse
 
 router = APIRouter(prefix="/api/books", tags=["books"])
 
@@ -77,6 +77,18 @@ def update_book(book_id: int, payload: BookCreate, session: SessionDep) -> BookR
 
     for field, value in payload.model_dump().items():
         setattr(book, field, value)
+    session.commit()
+
+    return BookResponse.model_validate(book)
+
+
+@router.put("/{book_id}/disposal")
+def update_book_disposal(
+    book_id: int, payload: BookDisposalUpdate, session: SessionDep
+) -> BookResponse:
+    """手放した日を設定する。NULLを送ると手元に戻す。書誌情報や記録は変えない"""
+    book = get_book_or_404(session, book_id)
+    book.disposed_on = payload.disposed_on
     session.commit()
 
     return BookResponse.model_validate(book)
