@@ -7,6 +7,9 @@ import App from "./App.tsx";
 vi.mock("./api/health.ts", () => ({
   fetchHealth: vi.fn().mockResolvedValue({ status: "ok" }),
 }));
+vi.mock("./api/books.ts", () => ({
+  fetchBooks: vi.fn().mockResolvedValue([]),
+}));
 
 function renderApp(path = "/") {
   render(

@@ -4,6 +4,7 @@
 :root {
   --text: #4b4553;
   --text-h: #08060d;
+  --text-muted: #8e8896;
   --bg: #fff;
   --border: #e5e4e7;
   --accent: #2f6fdb;
@@ -23,6 +24,7 @@
   :root {
     --text: #c4c7cf;
     --text-h: #f3f4f6;
+    --text-muted: #7c808b;
     --bg: #16171d;
     --border: #2e303a;
     --accent: #7aa7f5;
