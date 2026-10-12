@@ -3,9 +3,12 @@ import { Link } from "react-router";
 import { type BookInput, findConflictingBookId } from "../api/books.ts";
 import { toApiError } from "../api/client.ts";
 import { type FieldErrors, splitFieldErrors } from "../api/fieldErrors.ts";
+import { lookupIsbn } from "../api/isbnLookup.ts";
 import ErrorMessage from "./ErrorMessage.tsx";
 import FormField from "./FormField.tsx";
+import SuccessMessage from "./SuccessMessage.tsx";
 import {
+  applyIsbnLookupResult,
   BOOK_FIELDS,
   type BookField,
   type BookFormValues,
@@ -64,6 +67,11 @@ function BookForm({
   // ISBNが重複したときの、登録済みの本のID
   const [conflictingBookId, setConflictingBookId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // ISBNからの書誌情報の取得。送信のエラーとは別に持つ
+  // （取得のエラーは loc が ["query", "isbn"] で、splitFieldErrors の対象外のため）
+  const [lookingUp, setLookingUp] = useState(false);
+  const [lookupMessage, setLookupMessage] = useState<string | null>(null);
+  const [lookupErrors, setLookupErrors] = useState<string[]>([]);
   const formRef = useRef<HTMLFormElement>(null);
 
   // 送信に失敗したら、エラーのある最初の入力欄に移動する
@@ -76,6 +84,8 @@ function BookForm({
     setSubmitting(true);
     setErrors(null);
     setConflictingBookId(null);
+    setLookupMessage(null);
+    setLookupErrors([]);
     try {
       await onSubmit(toBookInput(values));
     } catch (error) {
@@ -83,6 +93,26 @@ function BookForm({
       setErrors(splitFieldErrors(apiError, BOOK_FIELDS));
       setConflictingBookId(findConflictingBookId(apiError));
       setSubmitting(false);
+    }
+  }
+
+  /** ISBN欄の値で書誌情報を取得し、取得できた項目だけを入力欄に入れる。保存はしない */
+  async function handleLookup() {
+    setLookingUp(true);
+    setLookupMessage(null);
+    setLookupErrors([]);
+    try {
+      const result = await lookupIsbn(values.isbn);
+      // 取得中に書き換えられた入力欄も残すよう、届いた時点の値に重ねる
+      setValues((current) => applyIsbnLookupResult(current, result));
+      // 前回の送信のエラー（「書名を入力してください」など）は、取得した値と食い違うので消す
+      setErrors(null);
+      setConflictingBookId(null);
+      setLookupMessage("書誌情報を取得しました。内容を確認してください");
+    } catch (error) {
+      setLookupErrors(toApiError(error).details.map((detail) => detail.msg));
+    } finally {
+      setLookingUp(false);
     }
   }
 
@@ -99,11 +129,26 @@ function BookForm({
           hint={hint}
           errors={errors?.fields[name]}
           after={
-            name === "isbn" &&
-            conflictingBookId !== null && (
-              <p className={styles.hint}>
-                <Link to={`/books/${conflictingBookId}`}>登録済みの本を見る</Link>
-              </p>
+            name === "isbn" && (
+              <>
+                {conflictingBookId !== null && (
+                  <p className={styles.hint}>
+                    <Link to={`/books/${conflictingBookId}`}>登録済みの本を見る</Link>
+                  </p>
+                )}
+                <div className={styles.actions}>
+                  <button
+                    type="button"
+                    disabled={lookingUp || submitting}
+                    onClick={handleLookup}
+                    className={styles.secondary}
+                  >
+                    {lookingUp ? "取得中…" : "ISBNから取得"}
+                  </button>
+                </div>
+                <SuccessMessage message={lookupMessage} />
+                <ErrorMessage messages={lookupErrors} />
+              </>
             )
           }
         >
@@ -120,7 +165,8 @@ function BookForm({
         </FormField>
       ))}
       <div className={styles.actions}>
-        <button type="submit" disabled={submitting} className={styles.submit}>
+        {/* 取得中に送信すると、送信後に取得結果で入力欄が書き換わるので押せなくする */}
+        <button type="submit" disabled={submitting || lookingUp} className={styles.submit}>
           {submitting ? submittingLabel : submitLabel}
         </button>
         {cancelTo !== undefined && <Link to={cancelTo}>キャンセル</Link>}

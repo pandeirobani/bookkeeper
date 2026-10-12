@@ -1,4 +1,5 @@
 import type { Book, BookInput } from "../api/books.ts";
+import type { IsbnLookupResult } from "../api/isbnLookup.ts";
 import { toIntegerInput } from "../utils/input.ts";
 
 export const BOOK_FIELDS = [
@@ -36,6 +37,27 @@ export function toBookFormValues(book: Book): BookFormValues {
     published_date: book.published_date ?? "",
     list_price: book.list_price === null ? "" : String(book.list_price),
     cover_image_url: book.cover_image_url ?? "",
+  };
+}
+
+/**
+ * ISBNから取得した書誌情報を、入力欄の値に重ねる。
+ * 取得できた項目だけを上書きし、取得できなかった（null の）項目は入力済みの値を残す
+ * （docs/openbd.md の「編集画面で取得し直すとき」）
+ */
+export function applyIsbnLookupResult(
+  values: BookFormValues,
+  result: IsbnLookupResult,
+): BookFormValues {
+  return {
+    // ISBN-13にそろえた値にする
+    isbn: result.isbn,
+    title: result.title ?? values.title,
+    author: result.author ?? values.author,
+    publisher: result.publisher ?? values.publisher,
+    published_date: result.published_date ?? values.published_date,
+    list_price: result.list_price === null ? values.list_price : String(result.list_price),
+    cover_image_url: result.cover_image_url ?? values.cover_image_url,
   };
 }
 
