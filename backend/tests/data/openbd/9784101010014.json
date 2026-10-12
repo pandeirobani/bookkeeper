@@ -1,0 +1,149 @@
+{
+  "onix": {
+    "CollateralDetail": {},
+    "RecordReference": "9784101010014",
+    "NotificationType": "03",
+    "ProductIdentifier": {
+      "ProductIDType": "15",
+      "IDValue": "9784101010014"
+    },
+    "DescriptiveDetail": {
+      "TitleDetail": {
+        "TitleType": "01",
+        "TitleElement": {
+          "TitleElementLevel": "01",
+          "TitleText": {
+            "collationkey": "ワガハイ ワ ネコ デ アル",
+            "content": "吾輩は猫である"
+          }
+        }
+      },
+      "Contributor": [
+        {
+          "SequenceNumber": "1",
+          "ContributorRole": [],
+          "PersonName": {
+            "content": "夏目, 漱石, 1867-1916",
+            "collationkey": "ナツメ, ソウセキ, 1867-1916"
+          }
+        }
+      ],
+      "Collection": {
+        "CollectionType": "10",
+        "TitleDetail": {
+          "TitleType": "01",
+          "TitleElement": [
+            {
+              "TitleElementLevel": "02",
+              "PartNumber": "",
+              "TitleText": {
+                "collationkey": "",
+                "content": "新潮文庫"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "PublishingDetail": {
+      "Imprint": {
+        "ImprintName": "新潮社"
+      },
+      "PublishingDate": [
+        {
+          "PublishingDateRole": "11",
+          "Date": "200306"
+        }
+      ]
+    },
+    "ProductSupply": {
+      "SupplyDetail": {
+        "ProductAvailability": "99",
+        "Price": [
+          {
+            "PriceType": "01",
+            "CurrencyCode": "JPY",
+            "PriceAmount": "629"
+          }
+        ]
+      }
+    }
+  },
+  "hanmoto": {
+    "datecreated": "2015-08-20 03:33:58",
+    "reviews": [
+      {
+        "post_user": "genkina",
+        "reviewer": "末延芳晴（文芸評論家）",
+        "source_id": 29,
+        "kubun_id": 1,
+        "source": "毎日新聞",
+        "choyukan": "",
+        "han": "",
+        "link": "",
+        "appearance": "2010-06-27",
+        "gou": ""
+      },
+      {
+        "post_user": "genkina",
+        "reviewer": "中鉢良治（産業技術総合研究所）",
+        "source_id": 23,
+        "kubun_id": 1,
+        "source": "日本経済新聞",
+        "choyukan": "",
+        "han": "",
+        "link": "",
+        "appearance": "2015-12-06",
+        "gou": ""
+      },
+      {
+        "post_user": "genkina",
+        "reviewer": "マキノノゾミ（劇作家・演出家）",
+        "source_id": 20,
+        "kubun_id": 1,
+        "source": "読売新聞",
+        "choyukan": "",
+        "han": "",
+        "link": "",
+        "appearance": "2016-01-31",
+        "gou": ""
+      },
+      {
+        "post_user": "genkina",
+        "reviewer": "平田オリザ（劇作家、演出家）",
+        "source_id": 18,
+        "kubun_id": 1,
+        "source": "朝日新聞",
+        "choyukan": "朝刊",
+        "han": "",
+        "link": "",
+        "appearance": "2019-12-07",
+        "gou": ""
+      },
+      {
+        "post_user": "admin",
+        "reviewer": "頭木弘樹（文学紹介者）",
+        "source_id": 29,
+        "kubun_id": 1,
+        "source": "毎日新聞",
+        "choyukan": "朝刊",
+        "han": "",
+        "link": "",
+        "appearance": "2024-08-24",
+        "gou": ""
+      }
+    ],
+    "dateshuppan": "2003-06",
+    "datemodified": "2015-08-20 03:33:58"
+  },
+  "summary": {
+    "isbn": "9784101010014",
+    "title": "吾輩は猫である",
+    "volume": "",
+    "series": "新潮文庫",
+    "publisher": "新潮社",
+    "pubdate": "200306",
+    "cover": "",
+    "author": "夏目,漱石,1867-1916"
+  }
+}

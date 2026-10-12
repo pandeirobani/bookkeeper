@@ -1,0 +1,103 @@
+{
+  "onix": {
+    "CollateralDetail": {},
+    "RecordReference": "9784873115658",
+    "NotificationType": "03",
+    "ProductIdentifier": {
+      "ProductIDType": "15",
+      "IDValue": "9784873115658"
+    },
+    "DescriptiveDetail": {
+      "TitleDetail": {
+        "TitleType": "01",
+        "TitleElement": {
+          "TitleElementLevel": "01",
+          "TitleText": {
+            "collationkey": "リーダブル コード : ヨリ ヨイ コード オ カク タメ ノ シンプル デ ジッセンテキ ナ テクニック",
+            "content": "リーダブルコード : より良いコードを書くためのシンプルで実践的なテクニック"
+          }
+        }
+      },
+      "Contributor": [
+        {
+          "SequenceNumber": "1",
+          "ContributorRole": [],
+          "PersonName": {
+            "content": "Boswell, Dustin",
+            "collationkey": ""
+          }
+        },
+        {
+          "SequenceNumber": "2",
+          "ContributorRole": [],
+          "PersonName": {
+            "content": "Foucher, Trevor",
+            "collationkey": ""
+          }
+        },
+        {
+          "SequenceNumber": "3",
+          "ContributorRole": [],
+          "PersonName": {
+            "content": "角, 征典",
+            "collationkey": "カド, マサノリ"
+          }
+        }
+      ],
+      "Collection": {
+        "CollectionType": "10",
+        "TitleDetail": {
+          "TitleType": "01",
+          "TitleElement": [
+            {
+              "TitleElementLevel": "02",
+              "PartNumber": "",
+              "TitleText": {
+                "collationkey": "",
+                "content": "THEORY/IN/PRACTICE"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "PublishingDetail": {
+      "Imprint": {
+        "ImprintName": "オーム社"
+      },
+      "PublishingDate": [
+        {
+          "PublishingDateRole": "11",
+          "Date": "201206"
+        }
+      ]
+    },
+    "ProductSupply": {
+      "SupplyDetail": {
+        "ProductAvailability": "99",
+        "Price": [
+          {
+            "PriceType": "01",
+            "CurrencyCode": "JPY",
+            "PriceAmount": "2400"
+          }
+        ]
+      }
+    }
+  },
+  "hanmoto": {
+    "datecreated": "2015-11-16 18:20:34",
+    "dateshuppan": "2012-06",
+    "datemodified": "2015-11-16 18:20:34"
+  },
+  "summary": {
+    "isbn": "9784873115658",
+    "title": "リーダブルコード : より良いコードを書くためのシンプルで実践的なテクニック",
+    "volume": "",
+    "series": "THEORY/IN/PRACTICE",
+    "publisher": "オーム社",
+    "pubdate": "201206",
+    "cover": "",
+    "author": "Boswell,Dustin Foucher,Trevor 角,征典"
+  }
+}

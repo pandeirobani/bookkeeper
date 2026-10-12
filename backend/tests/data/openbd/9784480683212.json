@@ -1,0 +1,228 @@
+{
+  "onix": {
+    "RecordReference": "9784480683212",
+    "NotificationType": "03",
+    "ProductIdentifier": {
+      "ProductIDType": "15",
+      "IDValue": "9784480683212"
+    },
+    "DescriptiveDetail": {
+      "ProductComposition": "00",
+      "ProductForm": "BA",
+      "ProductFormDetail": "B112",
+      "Collection": {
+        "CollectionType": "10",
+        "CollectionSequence": {
+          "CollectionSequenceType": "03",
+          "CollectionSequenceNumber": "298"
+        },
+        "TitleDetail": {
+          "TitleType": "01",
+          "TitleElement": [
+            {
+              "TitleElementLevel": "02",
+              "TitleText": {
+                "collationkey": "ﾁｸﾏﾌﾟﾘﾏｰｼﾝｼｮ",
+                "content": "ちくまプリマー新書"
+              }
+            }
+          ]
+        },
+        "CollectionSequenceArray": [
+          {
+            "CollectionSequenceType": "03",
+            "CollectionSequenceNumber": "298"
+          }
+        ]
+      },
+      "TitleDetail": {
+        "TitleType": "01",
+        "TitleElement": {
+          "TitleElementLevel": "01",
+          "TitleText": {
+            "collationkey": "キュウジュウキュウパーセントノヒトガハヤクナルハシリカタ",
+            "content": "９９％の人が速くなる走り方"
+          }
+        }
+      },
+      "Contributor": [
+        {
+          "SequenceNumber": "1",
+          "ContributorRole": [
+            "A01"
+          ],
+          "PersonName": {
+            "collationkey": "ヒライワ トキオ",
+            "content": "平岩 時雄"
+          }
+        }
+      ],
+      "Language": [
+        {
+          "LanguageRole": "01",
+          "LanguageCode": "jpn",
+          "CountryCode": "JP"
+        }
+      ],
+      "Extent": [
+        {
+          "ExtentType": "11",
+          "ExtentValue": "224",
+          "ExtentUnit": "03"
+        }
+      ],
+      "Subject": [
+        {
+          "MainSubject": "",
+          "SubjectSchemeIdentifier": "78",
+          "SubjectCode": "0275"
+        },
+        {
+          "SubjectSchemeIdentifier": "C9",
+          "SubjectCode": "HX99"
+        }
+      ],
+      "Audience": [
+        {
+          "AudienceCodeType": "22",
+          "AudienceCodeValue": "00"
+        }
+      ]
+    },
+    "CollateralDetail": {
+      "TextContent": [
+        {
+          "TextType": "02",
+          "ContentAudience": "00",
+          "Text": "体育も部活もまずは走るところからスタート。それなのに、きちんとした走り方を教えてくれない。「走る技術」を習得すればあなたも…"
+        }
+      ],
+      "SupportingResource": [
+        {
+          "ResourceContentType": "01",
+          "ContentAudience": "01",
+          "ResourceMode": "03",
+          "ResourceVersion": [
+            {
+              "ResourceForm": "02",
+              "ResourceVersionFeature": [
+                {
+                  "ResourceVersionFeatureType": "01",
+                  "FeatureValue": "D502"
+                },
+                {
+                  "ResourceVersionFeatureType": "04",
+                  "FeatureValue": "9784480683212.jpg"
+                }
+              ],
+              "ResourceLink": "https://cover.openbd.jp/9784480683212.jpg"
+            }
+          ]
+        }
+      ]
+    },
+    "PublishingDetail": {
+      "Imprint": {
+        "ImprintIdentifier": [
+          {
+            "ImprintIDType": "24",
+            "IDValue": "4604"
+          },
+          {
+            "ImprintIDType": "19",
+            "IDValue": "480"
+          }
+        ],
+        "ImprintName": "筑摩書房"
+      },
+      "Publisher": {
+        "PublishingRole": "01",
+        "PublisherIdentifier": [
+          {
+            "PublisherIDType": "24",
+            "IDValue": "4604"
+          },
+          {
+            "PublisherIDType": "19",
+            "IDValue": "480"
+          }
+        ],
+        "PublisherName": "筑摩書房"
+      },
+      "PublishingDate": [
+        {
+          "PublishingDateRole": "01",
+          "Date": "20180508"
+        }
+      ]
+    },
+    "ProductSupply": {
+      "MarketPublishingDetail": {
+        "MarketPublishingStatus": "00",
+        "MarketPublishingStatusNote": "1;"
+      },
+      "SupplyDetail": {
+        "ReturnsConditions": {
+          "ReturnsCodeType": "04",
+          "ReturnsCode": "03"
+        },
+        "ProductAvailability": "99",
+        "Price": [
+          {
+            "PriceType": "03",
+            "PriceAmount": "840",
+            "CurrencyCode": "JPY"
+          }
+        ]
+      }
+    }
+  },
+  "hanmoto": {
+    "zaiko": 11,
+    "ndccode": "ndc10:782.3",
+    "author": [
+      {
+        "listseq": 1,
+        "dokujikubun": ""
+      }
+    ],
+    "datemodified": "2026-01-30 13:50:04",
+    "datecreated": "2018-02-20 16:38:52",
+    "reviews": [
+      {
+        "post_user": "genkina",
+        "reviewer": "服部文祥（登山家、作家）",
+        "source_id": 20,
+        "kubun_id": 1,
+        "source": "読売新聞",
+        "choyukan": "朝刊",
+        "han": "",
+        "link": "",
+        "appearance": "2018-07-01",
+        "gou": ""
+      }
+    ],
+    "hanmotoinfo": {
+      "name": "筑摩書房",
+      "yomi": "チクマショボウ",
+      "url": "https://www.chikumashobo.co.jp/",
+      "toritsugitorikyo": "",
+      "toritsugisonota": "",
+      "eigyoudaihyousha": "",
+      "phoneshoten": "",
+      "facsimileshoten": "",
+      "emailshoten": ""
+    },
+    "hankeidokuji": "新書判"
+  },
+  "summary": {
+    "isbn": "9784480683212",
+    "title": "９９％の人が速くなる走り方",
+    "volume": "",
+    "series": "ちくまプリマー新書",
+    "publisher": "筑摩書房",
+    "pubdate": "20180508",
+    "cover": "https://cover.openbd.jp/9784480683212.jpg",
+    "author": "平岩時雄／著"
+  }
+}

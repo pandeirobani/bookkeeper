@@ -128,7 +128,7 @@ GET https://api.openbd.jp/v1/get?isbn=9784873115658,9784798121963
 | 書名 | `summary.title` をそのまま使う |
 | 著者 | `DescriptiveDetail.Contributor` から組み立てる（下の「著者」） |
 | 出版社 | `summary.publisher` |
-| 出版日 | `YYYYMMDD` → `YYYY-MM-DD`、`YYYYMM` → `YYYY-MM`、`YYYY` はそのまま |
+| 出版日 | `summary.pubdate` を、`YYYYMMDD` → `YYYY-MM-DD`、`YYYYMM` → `YYYY-MM` にする。`YYYY` や、想定していない形（`1990.4` など）はそのまま |
 | 定価 | `ProductSupply.SupplyDetail.Price` から求める（下の「定価」） |
 | 表紙 | `summary.cover` が http/https のURLのときだけ使う |
 
@@ -154,7 +154,11 @@ GET https://api.openbd.jp/v1/get?isbn=9784873115658,9784798121963
 2. `PriceType` が `01`・`03`（税抜）のときは、×1.1 して端数を切り捨て、税込に換算する
    - 今の税率（10%）での定価になる。発売当時の税込価格とは違うことがある（例：消費税が5%だった時代の本）
    - `list_price` は参考の情報で、書籍費の集計には使わない（集計は `purchases.amount`）ので、この差は許容する
-3. 価格がない、または `PriceAmount` から数字を取り出せないときは空欄にする
+3. `PriceType` がない、または `01`〜`04` 以外で、`PriceAmount` にも「税込」とないときは、税込か税抜かわからないので空欄にする
+4. 価格がない、または `PriceAmount` から数字を取り出せないときは空欄にする
+
+- 通貨（`CurrencyCode`）が円（`JPY`）以外の価格は使わない。通貨がないときは円とみなす
+- 価格が複数あるときは、上の 1〜2 で定価を求められる最初の価格を使う
 
 ### 編集画面で取得し直すとき
 

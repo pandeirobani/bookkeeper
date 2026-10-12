@@ -1,0 +1,149 @@
+{
+  "onix": {
+    "CollateralDetail": {},
+    "RecordReference": "9784003101018",
+    "NotificationType": "03",
+    "ProductIdentifier": {
+      "ProductIDType": "15",
+      "IDValue": "9784003101018"
+    },
+    "DescriptiveDetail": {
+      "TitleDetail": {
+        "TitleType": "01",
+        "TitleElement": {
+          "TitleElementLevel": "01",
+          "TitleText": {
+            "collationkey": "ワガハイ ワ ネコ デ アル",
+            "content": "吾輩は猫である"
+          }
+        }
+      },
+      "Contributor": [
+        {
+          "SequenceNumber": "1",
+          "ContributorRole": [],
+          "PersonName": {
+            "content": "夏目, 漱石, 1867-1916",
+            "collationkey": "ナツメ, ソウセキ, 1867-1916"
+          }
+        }
+      ],
+      "Collection": {
+        "CollectionType": "10",
+        "TitleDetail": {
+          "TitleType": "01",
+          "TitleElement": [
+            {
+              "TitleElementLevel": "02",
+              "PartNumber": "",
+              "TitleText": {
+                "collationkey": "",
+                "content": "岩波文庫"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "PublishingDetail": {
+      "Imprint": {
+        "ImprintName": "岩波書店"
+      },
+      "PublishingDate": [
+        {
+          "PublishingDateRole": "11",
+          "Date": "199004"
+        }
+      ]
+    },
+    "ProductSupply": {
+      "SupplyDetail": {
+        "ProductAvailability": "99",
+        "Price": [
+          {
+            "PriceType": "01",
+            "CurrencyCode": "JPY",
+            "PriceAmount": "410 (税込)"
+          }
+        ]
+      }
+    }
+  },
+  "hanmoto": {
+    "datemodified": "2026-06-09 11:21:06",
+    "datecreated": "2015-08-20 11:31:54",
+    "reviews": [
+      {
+        "post_user": "genkina",
+        "reviewer": "高田里惠子(桃山学院大学教授・ドイツ文学)",
+        "source_id": 18,
+        "kubun_id": 1,
+        "source": "朝日新聞",
+        "choyukan": "",
+        "han": "",
+        "link": "",
+        "appearance": "2014-08-24",
+        "gou": ""
+      },
+      {
+        "post_user": "genkina",
+        "reviewer": "",
+        "source_id": 19,
+        "kubun_id": 1,
+        "source": "東京新聞／中日新聞",
+        "choyukan": "",
+        "han": "",
+        "link": "",
+        "appearance": "2014-08-31",
+        "gou": ""
+      },
+      {
+        "post_user": "genkina",
+        "reviewer": "",
+        "source_id": 20,
+        "kubun_id": 1,
+        "source": "読売新聞",
+        "choyukan": "朝刊",
+        "han": "",
+        "link": "",
+        "appearance": "2018-11-25",
+        "gou": ""
+      },
+      {
+        "post_user": "genkina",
+        "reviewer": "",
+        "source_id": 20,
+        "kubun_id": 1,
+        "source": "読売新聞",
+        "choyukan": "朝刊",
+        "han": "",
+        "link": "",
+        "appearance": "2021-08-22",
+        "gou": ""
+      },
+      {
+        "post_user": "genkina",
+        "reviewer": "更科功（武蔵野美術大学教授・分子古生物学）",
+        "source_id": 20,
+        "kubun_id": 1,
+        "source": "読売新聞",
+        "choyukan": "朝刊",
+        "han": "",
+        "link": "",
+        "appearance": "2022-08-14",
+        "gou": ""
+      }
+    ],
+    "dateshuppan": "昭和36 23刷-01"
+  },
+  "summary": {
+    "isbn": "9784003101018",
+    "title": "吾輩は猫である",
+    "volume": "",
+    "series": "岩波文庫",
+    "publisher": "岩波書店",
+    "pubdate": "199004",
+    "cover": "",
+    "author": "夏目,漱石,1867-1916"
+  }
+}

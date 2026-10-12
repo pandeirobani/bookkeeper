@@ -66,7 +66,7 @@ def _assume_utc(value: datetime) -> datetime:
 UtcDatetime = Annotated[datetime, AfterValidator(_assume_utc)]
 
 
-def _is_http_url(value: str) -> bool:
+def is_http_url(value: str) -> bool:
     """スキームが http か https で、ホスト名があるURLかどうか。
 
     画面で <img src> に入れる値なので、javascript: や data: などを保存させない。
@@ -131,7 +131,7 @@ class BookCreate(BaseModel):
         value = _check_max_length(
             _blank_to_none(value), MAX_COVER_IMAGE_URL_LENGTH, "表紙画像のURL"
         )
-        if value is not None and not _is_http_url(value):
+        if value is not None and not is_http_url(value):
             raise ValueError(
                 "表紙画像のURLは http:// または https:// で始まるURLを入力してください"
             )

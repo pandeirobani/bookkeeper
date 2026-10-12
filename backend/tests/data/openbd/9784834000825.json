@@ -1,0 +1,117 @@
+{
+  "onix": {
+    "CollateralDetail": {},
+    "RecordReference": "9784834000825",
+    "NotificationType": "03",
+    "ProductIdentifier": {
+      "ProductIDType": "15",
+      "IDValue": "9784834000825"
+    },
+    "DescriptiveDetail": {
+      "TitleDetail": {
+        "TitleType": "01",
+        "TitleElement": {
+          "TitleElementLevel": "01",
+          "TitleText": {
+            "collationkey": "グリ ト グラ",
+            "content": "ぐりとぐら"
+          }
+        }
+      },
+      "Contributor": [
+        {
+          "SequenceNumber": "1",
+          "ContributorRole": [],
+          "PersonName": {
+            "content": "中川, 李枝子",
+            "collationkey": "ナカガワ, リエコ"
+          }
+        },
+        {
+          "SequenceNumber": "2",
+          "ContributorRole": [],
+          "PersonName": {
+            "content": "大村, 百合子",
+            "collationkey": "オオムラ, ユリコ"
+          }
+        }
+      ]
+    },
+    "PublishingDetail": {
+      "Imprint": {
+        "ImprintName": "福音館書店"
+      },
+      "PublishingDate": [
+        {
+          "PublishingDateRole": "11",
+          "Date": "196701"
+        }
+      ]
+    }
+  },
+  "hanmoto": {
+    "datemodified": "2026-01-26 17:13:29",
+    "datecreated": "2015-08-20 03:56:47",
+    "reviews": [
+      {
+        "post_user": "genkina",
+        "reviewer": "松永美穂（ドイツ文学者）",
+        "source_id": 20,
+        "kubun_id": 1,
+        "source": "読売新聞",
+        "choyukan": "",
+        "han": "",
+        "link": "",
+        "appearance": "2010-12-19",
+        "gou": ""
+      },
+      {
+        "post_user": "genkina",
+        "reviewer": "あさのあつこ（作家）",
+        "source_id": 23,
+        "kubun_id": 1,
+        "source": "日本経済新聞",
+        "choyukan": "",
+        "han": "",
+        "link": "",
+        "appearance": "2012-08-12",
+        "gou": ""
+      },
+      {
+        "post_user": "genkina",
+        "reviewer": "小泉進次郎（環境相）",
+        "source_id": 23,
+        "kubun_id": 1,
+        "source": "日本経済新聞",
+        "choyukan": "朝刊",
+        "han": "",
+        "link": "",
+        "appearance": "2020-09-05",
+        "gou": ""
+      },
+      {
+        "post_user": "genkina",
+        "reviewer": "",
+        "source_id": 20,
+        "kubun_id": 1,
+        "source": "読売新聞",
+        "choyukan": "朝刊",
+        "han": "",
+        "link": "",
+        "appearance": "2021-08-22",
+        "gou": ""
+      }
+    ],
+    "dateshuppan": "1967-1(100刷:1996-2)"
+  },
+  "summary": {
+    "isbn": "9784834000825",
+    "title": "ぐりとぐら",
+    "volume": "",
+    "series": "",
+    "publisher": "福音館書店",
+    "pubdate": "196701",
+    "cover": "",
+    "author": "中川,李枝子 大村,百合子"
+  }
+}
