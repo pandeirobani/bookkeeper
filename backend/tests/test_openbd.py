@@ -105,6 +105,9 @@ def test_parse_record_registered_by_publisher():
         ("平岩 時雄", "平岩時雄"),
         ("平岩　時雄", "平岩時雄"),  # 全角の空白
         ("火海坂, 猫", "火海坂猫"),
+        ("佐々木, 小次郎", "佐々木小次郎"),
+        ("ヤマザキ, マリ", "ヤマザキマリ"),
+        ("さくら, ももこ", "さくらももこ"),
         ("Harari, Yuval N., 1976-", "Yuval N. Harari"),
         ("Boswell, Dustin", "Dustin Boswell"),
         ("Dustin Boswell", "Dustin Boswell"),

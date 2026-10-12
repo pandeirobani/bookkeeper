@@ -54,6 +54,24 @@ GET https://api.openbd.jp/v1/get?isbn=9784873115658,9784798121963
 - 応答は配列で、渡したISBNの順に1件ずつ入る。該当なしは `null`
 - ISBNはハイフンなしのISBN-13で渡す（このアプリでは `app/isbn.py` の `normalize_isbn` でそろえてから渡す）
 
+### このアプリでの呼び出し
+
+画面からは `GET /api/isbn-lookup?isbn=<入力値>` を呼び、バックエンド（`app/routers/isbn_lookup.py`）が openBD を呼ぶ。取得した値はDBに保存しない。
+
+- ISBNは1つずつ問い合わせる。タイムアウトは5秒で、リトライはしない
+- 結果とステータス
+
+  | 状況 | ステータス | `type` |
+  |---|---|---|
+  | 取得できた | 200 | |
+  | ISBNがない・空・正しくない（openBD は呼ばない） | 422 | `missing` / `value_error` |
+  | 該当なし（`null`） | 404 | `not_found` |
+  | タイムアウト | 504 | `lookup_timeout` |
+  | 接続できない、openBD がエラーを返した、応答がJSONでない、要素1つの配列でない、要素の形が想定と違う | 502 | `lookup_failed` |
+
+- 502・504 の原因は画面には出さず、ログに警告として残す
+- テストでは openBD をモックに差し替える。`tests/conftest.py` の `client` フィクスチャは、差し替えを忘れて本物の openBD を呼ぶとテストを失敗させる
+
 ## 調べたISBNと結果
 
 | ISBN | 書名 | 著者（`ContributorRole`） | 出版社 | 出版日 | 価格（`PriceType`） | 表紙 |

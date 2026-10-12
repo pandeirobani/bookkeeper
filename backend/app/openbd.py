@@ -1,4 +1,4 @@
-"""openBD の応答を、書籍登録と同じ項目の書誌情報に変換する
+"""openBD から書誌情報を取得し、書籍登録と同じ項目に変換する
 
 変換のしかたは docs/openbd.md の「このアプリでの変換のしかた」に従う。
 openBD の値は本によって書き方が違う（表記ゆれ）ので、
@@ -8,15 +8,27 @@ openBD の値は本によって書き方が違う（表記ゆれ）ので、
 
 import re
 import unicodedata
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
+
+import httpx
 
 from app.schemas import is_http_url
 
+OPENBD_API_URL = "https://api.openbd.jp/v1/get"
+# openBD の応答を待つ秒数。画面で利用者が待っているので、長くは待たない
+OPENBD_TIMEOUT_SECONDS = 5.0
+
 # 名前の後ろに付く生没年（1867-1916、1962-）や、同名の人を区別する印（pub.2011）
 _NAME_QUALIFIER = re.compile(r"(?:pub\.)?[0-9]{4}(?:-[0-9]{0,4})?")
-# 日本語（ひらがな・カタカナ・漢字）を含む名前は、姓と名を区切らずにつなぐ
-_JAPANESE_CHARACTER = re.compile(r"[぀-ヿ㐀-鿿豈-﫿々〆ヶ]")
+# 日本語の名前かどうかを、文字の名前（Unicode の文字名）の先頭で判定する。
+# ひらがな・カタカナ・漢字を対象にする
+_JAPANESE_CHARACTER_NAMES = (
+    "HIRAGANA",
+    "KATAKANA",
+    "CJK UNIFIED IDEOGRAPH",
+    "CJK COMPATIBILITY IDEOGRAPH",
+)
 
 # 出版日（summary.pubdate）。YYYYMMDD・YYYYMM・YYYY
 _PUBDATE = re.compile(r"([0-9]{4})([0-9]{2})?([0-9]{2})?")
@@ -35,6 +47,17 @@ class OpenBDFormatError(ValueError):
     """openBD の応答の形が想定と違う（必要な値の型が違うなど）"""
 
 
+class OpenBDTimeoutError(Exception):
+    """openBD の応答が時間内に返らなかった"""
+
+
+class OpenBDUnavailableError(Exception):
+    """openBD から書誌情報を取得できなかった。
+
+    接続できない、エラーが返った、応答の形が違うなど
+    """
+
+
 @dataclass(frozen=True)
 class BookInfo:
     """openBD から取得した書誌情報。取得できなかった項目は None"""
@@ -45,6 +68,48 @@ class BookInfo:
     published_date: str | None
     list_price: int | None
     cover_image_url: str | None
+
+
+def get_openbd_client() -> Iterator[httpx.Client]:
+    """openBD を呼ぶクライアント（FastAPIの依存関数）。テストではモックに差し替える"""
+    with httpx.Client(timeout=OPENBD_TIMEOUT_SECONDS) as client:
+        yield client
+
+
+def fetch_book_info(client: httpx.Client, isbn: str) -> BookInfo | None:
+    """ISBN（ハイフンなしのISBN-13）の書誌情報を openBD から取得する。該当なしは None
+
+    - 時間内に応答がなければ OpenBDTimeoutError を送出する
+    - そのほかの失敗は OpenBDUnavailableError を送出する。原因は __cause__ に残る
+    """
+    try:
+        response = client.get(OPENBD_API_URL, params={"isbn": isbn})
+        response.raise_for_status()
+        records = response.json()
+    except httpx.TimeoutException as error:
+        raise OpenBDTimeoutError("openBD の応答が時間内に返りませんでした") from error
+    except (httpx.HTTPError, ValueError) as error:  # JSONでない応答は ValueError
+        raise OpenBDUnavailableError(f"openBD を呼べませんでした: {error}") from error
+
+    # ISBNを1つ渡したので、要素が1つの配列が返る
+    if not isinstance(records, list) or len(records) != 1:
+        # 応答の中身はログに出すには大きいことがあるので、形だけを残す
+        actual = (
+            f"要素{len(records)}個の配列"
+            if isinstance(records, list)
+            else type(records).__name__
+        )
+        raise OpenBDUnavailableError(
+            f"openBD の応答が要素1つの配列ではありません: {actual}"
+        )
+    if records[0] is None:
+        return None
+    try:
+        return parse_record(records[0])
+    except OpenBDFormatError as error:
+        raise OpenBDUnavailableError(
+            f"openBD の応答の形が想定と違います: {error}"
+        ) from error
 
 
 def parse_record(record: object) -> BookInfo:
@@ -109,11 +174,15 @@ def format_person_name(content: str) -> str:
     ]
     if not parts:
         return ""
-    if _JAPANESE_CHARACTER.search("".join(parts)):
+    if any(_is_japanese_character(char) for char in "".join(parts)):
         # 全角の空白も区切りとして除く
         return "".join("".join(part.split()) for part in parts)
     family, *given = parts
     return " ".join([*given, family])
+
+
+def _is_japanese_character(char: str) -> bool:
+    return unicodedata.name(char, "").startswith(_JAPANESE_CHARACTER_NAMES)
 
 
 # --- 出版日 ---

@@ -164,6 +164,23 @@ class BookResponse(BaseModel):
     created_at: UtcDatetime
 
 
+class IsbnLookupResponse(BaseModel):
+    """ISBNから取得した書誌情報のレスポンス。保存はしない。取得できなかった項目は null
+
+    文字数の上限は超えていても切り詰めない。画面でフォームに入れ、
+    保存のときに BookCreate の検証で利用者に気づいてもらう
+    """
+
+    # ISBN-13にそろえた値
+    isbn: str
+    title: str | None
+    author: str | None
+    publisher: str | None
+    published_date: str | None
+    list_price: int | None
+    cover_image_url: str | None
+
+
 class PurchaseCreate(BaseModel):
     """購入記録の追加・更新のリクエスト"""
 
