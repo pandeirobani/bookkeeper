@@ -22,12 +22,18 @@ export function useFlashMessage(): string | null {
   const navigate = useNavigate();
   const [message] = useState(() => readMessage(location.state));
 
-  // 表示したメッセージは履歴から消し、再読み込みや「戻る」でもう一度出ないようにする
+  // 表示したメッセージは履歴から消し、再読み込みや「戻る」でもう一度出ないようにする。
+  // 一覧画面の検索語（?q=）などは消さずに残す
+  // 履歴にメッセージが残っている間だけ書き換え、検索語の入力などで何度も書き換えないようにする
+  const hasMessageInHistory = readMessage(location.state) !== null;
   useEffect(() => {
-    if (message !== null) {
-      navigate(location.pathname, { replace: true, state: null });
+    if (hasMessageInHistory) {
+      navigate(
+        { pathname: location.pathname, search: location.search },
+        { replace: true, state: null },
+      );
     }
-  }, [message, navigate, location.pathname]);
+  }, [hasMessageInHistory, navigate, location.pathname, location.search]);
 
   return message;
 }

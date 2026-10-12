@@ -1,3 +1,8 @@
+.search {
+  max-width: 400px;
+  margin-bottom: 16px;
+}
+
 .count {
   margin-bottom: 8px;
   font-size: 14px;
