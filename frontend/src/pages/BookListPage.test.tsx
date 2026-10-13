@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type InitialEntry, MemoryRouter, useLocation } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { type Book, fetchBooks } from "../api/books.ts";
+import { type BookListItem, fetchBooks } from "../api/books.ts";
 import { ApiError } from "../api/client.ts";
 import BookListPage from "./BookListPage.tsx";
 
@@ -10,7 +10,7 @@ vi.mock("../api/books.ts", () => ({
   fetchBooks: vi.fn(),
 }));
 
-const BOOK: Book = {
+const BOOK: BookListItem = {
   id: 1,
   isbn: "9784003101018",
   title: "テスト書籍",
@@ -21,6 +21,7 @@ const BOOK: Book = {
   cover_image_url: null,
   disposed_on: null,
   created_at: "2026-10-12T03:00:00Z",
+  reading_status: "unread",
 };
 
 /** 今のURLのクエリ文字列を表示する。検索語がURLに入ったかを確かめるため */
@@ -123,7 +124,7 @@ describe("BookListPage", () => {
   });
 
   describe("検索", () => {
-    const BOOKS: Book[] = [
+    const BOOKS: BookListItem[] = [
       { ...BOOK, id: 1, title: "ノルウェイの森", author: "村上春樹" },
       { ...BOOK, id: 2, title: "海辺のカフカ", author: "村上春樹" },
       { ...BOOK, id: 3, title: "Python入門", author: null },

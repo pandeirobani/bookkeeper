@@ -35,15 +35,18 @@ const INPUT: BookInput = {
 };
 
 describe("fetchBooks", () => {
+  // 一覧の書籍には、読書状態も付く
+  const LIST_ITEM = { ...BOOK, reading_status: "unread" };
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
   it("/api/books を呼び、書籍の配列を返す", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(Response.json([BOOK]));
+    const fetchMock = vi.fn().mockResolvedValue(Response.json([LIST_ITEM]));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(fetchBooks()).resolves.toEqual([BOOK]);
+    await expect(fetchBooks()).resolves.toEqual([LIST_ITEM]);
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/books",
       expect.objectContaining({ method: "GET" }),
@@ -51,14 +54,34 @@ describe("fetchBooks", () => {
   });
 
   it("手放した日が入った書籍も受け付ける", async () => {
-    const disposed = { ...BOOK, disposed_on: "2026-10-10" };
+    const disposed = { ...LIST_ITEM, disposed_on: "2026-10-10" };
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json([disposed])));
 
     await expect(fetchBooks()).resolves.toEqual([disposed]);
   });
 
+  it.each(["unread", "reading", "finished", null])(
+    "読書状態が %s の書籍を受け付ける",
+    async (status) => {
+      const item = { ...LIST_ITEM, reading_status: status };
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json([item])));
+
+      await expect(fetchBooks()).resolves.toEqual([item]);
+    },
+  );
+
+  it("読書状態がない、または知らない値なら応答の形の誤りにする", async () => {
+    // BOOK は一覧以外の応答の形で、読書状態がない
+    const unknown = { ...LIST_ITEM, reading_status: "tsundoku" };
+
+    for (const body of [BOOK, unknown]) {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json([body])));
+      await expect(fetchBooks()).rejects.toBeInstanceOf(ApiError);
+    }
+  });
+
   it("created_at がUTC（末尾 Z）でなければ応答の形の誤りにする", async () => {
-    const naive = { ...BOOK, created_at: "2026-10-12T03:00:00" };
+    const naive = { ...LIST_ITEM, created_at: "2026-10-12T03:00:00" };
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json([naive])));
 
     await expect(fetchBooks()).rejects.toBeInstanceOf(ApiError);

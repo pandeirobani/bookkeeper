@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { type ApiError, apiRequest, apiRequestWithoutContent } from "./client.ts";
+import { READING_STATUSES } from "./readingRecords.ts";
 
 // バックエンドの BookResponse（backend/app/schemas.py）と同じ形
 const bookSchema = z.object({
@@ -20,6 +21,14 @@ const bookSchema = z.object({
 
 export type Book = z.infer<typeof bookSchema>;
 
+// バックエンドの BookListItemResponse と同じ形。書籍一覧では、読書状態で絞り込めるよう読書状態も受け取る
+const bookListItemSchema = bookSchema.extend({
+  /** APIから登録した本には必ずある。null はDBを直接変更して読書記録がない場合だけ */
+  reading_status: z.enum(READING_STATUSES).nullable(),
+});
+
+export type BookListItem = z.infer<typeof bookListItemSchema>;
+
 /**
  * 書籍の登録・更新で送る値。入力欄の値をそのまま送り、検証はサーバーに任せる。
  * 空文字はサーバーがNULLにする
@@ -35,9 +44,9 @@ export type BookInput = {
   cover_image_url: string;
 };
 
-/** 書籍を新しく登録した順に全件取得する */
-export function fetchBooks(): Promise<Book[]> {
-  return apiRequest("/books", z.array(bookSchema));
+/** 書籍を新しく登録した順に、読書状態と一緒に全件取得する */
+export function fetchBooks(): Promise<BookListItem[]> {
+  return apiRequest("/books", z.array(bookListItemSchema));
 }
 
 export function fetchBook(bookId: number): Promise<Book> {
