@@ -282,3 +282,35 @@ class YearExpenseDetailResponse(BaseModel):
     count: int
     # 1月から12月まで、購入のない月も含めて必ず12か月分
     months: list[MonthlyExpenseResponse]
+
+
+class ExpenseBookResponse(BaseModel):
+    """書籍費の明細に添える本の情報。本の詳細画面へのリンクと表示に使う"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    author: str | None
+
+
+class ExpensePurchaseResponse(BaseModel):
+    """書籍費の明細の1行（購入記録1件）"""
+
+    id: int
+    purchased_on: date
+    amount: int
+    store: str | None
+    memo: str | None
+    book: ExpenseBookResponse
+
+
+class MonthExpenseDetailResponse(BaseModel):
+    """1か月分の書籍費の合計と、その明細"""
+
+    year: int
+    month: int
+    total: int
+    count: int
+    # 購入日の古い順。同じ日の中は記録した順
+    purchases: list[ExpensePurchaseResponse]

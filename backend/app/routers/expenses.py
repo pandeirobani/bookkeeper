@@ -1,12 +1,16 @@
+from calendar import monthrange
 from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Path
 from sqlalchemy import Integer, cast, func, select
 
-from app.models import Purchase
+from app.models import Book, Purchase
 from app.routers.books import SessionDep
 from app.schemas import (
+    ExpenseBookResponse,
+    ExpensePurchaseResponse,
+    MonthExpenseDetailResponse,
     MonthlyExpenseResponse,
     YearExpenseDetailResponse,
     YearlyExpenseResponse,
@@ -16,6 +20,7 @@ router = APIRouter(prefix="/api/expenses", tags=["expenses"])
 
 # Pythonの date で扱える年の範囲
 YearPath = Annotated[int, Path(ge=1, le=9999)]
+MonthPath = Annotated[int, Path(ge=1, le=12)]
 
 
 @router.get("/yearly")
@@ -69,4 +74,44 @@ def get_year_expenses(year: YearPath, session: SessionDep) -> YearExpenseDetailR
         total=sum(m.total for m in months),
         count=sum(m.count for m in months),
         months=months,
+    )
+
+
+@router.get("/yearly/{year}/months/{month}")
+def get_month_expenses(
+    year: YearPath, month: MonthPath, session: SessionDep
+) -> MonthExpenseDetailResponse:
+    """1か月分の書籍費の合計と件数を、購入記録の明細と一緒に返す。
+
+    明細は購入日の古い順で、同じ日の中は記録した順。購入記録のない月も404にせず、
+    空の明細と0で返す
+    """
+    last_day = monthrange(year, month)[1]
+    rows = session.execute(
+        select(Purchase, Book)
+        .join(Book, Purchase.book_id == Book.id)
+        .where(
+            Purchase.purchased_on.between(
+                date(year, month, 1), date(year, month, last_day)
+            )
+        )
+        .order_by(Purchase.purchased_on, Purchase.id)
+    )
+    purchases = [
+        ExpensePurchaseResponse(
+            id=purchase.id,
+            purchased_on=purchase.purchased_on,
+            amount=purchase.amount,
+            store=purchase.store,
+            memo=purchase.memo,
+            book=ExpenseBookResponse.model_validate(book),
+        )
+        for purchase, book in rows
+    ]
+    return MonthExpenseDetailResponse(
+        year=year,
+        month=month,
+        total=sum(p.amount for p in purchases),
+        count=len(purchases),
+        purchases=purchases,
     )

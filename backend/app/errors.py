@@ -44,6 +44,7 @@ FIELD_LABELS = {
     "purchase_id": "購入記録のID",
     # 書籍費の集計
     "year": "年",
+    "month": "月",
 }
 
 
