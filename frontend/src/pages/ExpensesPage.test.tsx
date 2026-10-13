@@ -4,8 +4,11 @@ import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client.ts";
 import {
+  type ExpensePurchase,
+  type MonthExpenseDetail,
   type YearExpenseDetail,
   type YearlyExpense,
+  fetchMonthExpenses,
   fetchYearExpenses,
   fetchYearlyExpenses,
 } from "../api/expenses.ts";
@@ -14,6 +17,7 @@ import ExpensesPage from "./ExpensesPage.tsx";
 vi.mock("../api/expenses.ts", () => ({
   fetchYearlyExpenses: vi.fn(),
   fetchYearExpenses: vi.fn(),
+  fetchMonthExpenses: vi.fn(),
 }));
 
 const YEARLY: YearlyExpense[] = [
@@ -38,7 +42,22 @@ function makeYearDetail(
   };
 }
 
-/** 今のURLのクエリ文字列を表示する。選んだ年がURLに入ったかを確かめるため */
+/** 月の明細。合計と件数は明細から計算する */
+function makeMonthDetail(
+  year: number,
+  month: number,
+  purchases: ExpensePurchase[] = [],
+): MonthExpenseDetail {
+  return {
+    year,
+    month,
+    total: purchases.reduce((sum, purchase) => sum + purchase.amount, 0),
+    count: purchases.length,
+    purchases,
+  };
+}
+
+/** 今のURLのクエリ文字列を表示する。選んだ年と月がURLに入ったかを確かめるため */
 function LocationSearch() {
   return <p data-testid="location-search">{useLocation().search}</p>;
 }
@@ -74,12 +93,16 @@ describe("ExpensesPage", () => {
     vi.mocked(fetchYearExpenses).mockImplementation((year) =>
       Promise.resolve(makeYearDetail(year)),
     );
+    vi.mocked(fetchMonthExpenses).mockImplementation((year, month) =>
+      Promise.resolve(makeMonthDetail(year, month)),
+    );
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.mocked(fetchYearlyExpenses).mockReset();
     vi.mocked(fetchYearExpenses).mockReset();
+    vi.mocked(fetchMonthExpenses).mockReset();
   });
 
   describe("年ごとの書籍費", () => {
@@ -216,6 +239,120 @@ describe("ExpensesPage", () => {
 
       expect(await screen.findByRole("alert")).toHaveTextContent("サーバーに接続できません");
       expect(screen.getByRole("heading", { level: 3, name: "2026年の書籍費" })).toBeInTheDocument();
+    });
+  });
+
+  describe("月の明細", () => {
+    const PURCHASES: ExpensePurchase[] = [
+      {
+        id: 12,
+        purchased_on: "2025-10-03",
+        amount: 1980,
+        store: "テスト書店",
+        memo: null,
+        book: { id: 5, title: "テスト書籍", author: "テスト著者" },
+      },
+      {
+        id: 13,
+        purchased_on: "2025-10-10",
+        amount: 1100,
+        store: null,
+        memo: "古本",
+        book: { id: 6, title: "別の本", author: null },
+      },
+    ];
+
+    it("URLに月がなければ明細を出さない", async () => {
+      renderPage("/expenses?year=2025");
+
+      await screen.findByRole("table", { name: "2025年の月ごとの書籍費" });
+      expect(screen.queryByRole("heading", { name: /の明細$/ })).not.toBeInTheDocument();
+      expect(fetchMonthExpenses).not.toHaveBeenCalled();
+    });
+
+    it.each(["0", "13", "01", "abc"])(
+      "URLの月が正しくない（%s）ときは明細を出さない",
+      async (value) => {
+        renderPage(`/expenses?year=2025&month=${value}`);
+
+        await screen.findByRole("table", { name: "2025年の月ごとの書籍費" });
+        expect(screen.queryByRole("heading", { name: /の明細$/ })).not.toBeInTheDocument();
+        expect(fetchMonthExpenses).not.toHaveBeenCalled();
+      },
+    );
+
+    it("購入日・書名・購入店・金額と、月の合計を表示する", async () => {
+      vi.mocked(fetchMonthExpenses).mockResolvedValue(makeMonthDetail(2025, 10, PURCHASES));
+      renderPage("/expenses?year=2025&month=10");
+
+      const table = await screen.findByRole("table", { name: "2025年10月の明細" });
+      expect(bodyRows(table)).toEqual([
+        ["2025/10/03", "テスト書籍", "テスト書店", "1,980円"],
+        ["2025/10/10", "別の本", "", "1,100円"],
+      ]);
+      expect(screen.getByText(/^合計/)).toHaveTextContent("合計 3,080円（2件）");
+      expect(fetchMonthExpenses).toHaveBeenCalledWith(2025, 10);
+    });
+
+    it("書名から本の詳細画面に移れる", async () => {
+      vi.mocked(fetchMonthExpenses).mockResolvedValue(makeMonthDetail(2025, 10, PURCHASES));
+      renderPage("/expenses?year=2025&month=10");
+
+      expect(await screen.findByRole("link", { name: "別の本" })).toHaveAttribute(
+        "href",
+        "/books/6",
+      );
+    });
+
+    it("購入記録がない月は、そのことを表示する", async () => {
+      renderPage("/expenses?year=2025&month=4");
+
+      expect(await screen.findByText("この月の購入記録はありません")).toBeInTheDocument();
+      expect(screen.queryByRole("table", { name: "2025年4月の明細" })).not.toBeInTheDocument();
+    });
+
+    it("月額の表の月を選ぶと、その月の明細を開き、URLに月を入れる", async () => {
+      vi.mocked(fetchMonthExpenses).mockResolvedValue(makeMonthDetail(2025, 10, PURCHASES));
+      const user = renderPage("/expenses?year=2025");
+
+      await user.click(await screen.findByRole("link", { name: "10月" }));
+
+      expect(await screen.findByRole("table", { name: "2025年10月の明細" })).toBeInTheDocument();
+      expect(screen.getByTestId("location-search")).toHaveTextContent("?year=2025&month=10");
+      expect(screen.getByRole("link", { name: "10月" })).toHaveAttribute("aria-current", "true");
+      expect(screen.getByRole("link", { name: "9月" })).not.toHaveAttribute("aria-current");
+    });
+
+    it("「明細を閉じる」で明細を閉じ、URLから月を外す", async () => {
+      const user = renderPage("/expenses?year=2025&month=10");
+
+      await user.click(await screen.findByRole("link", { name: "明細を閉じる" }));
+
+      expect(screen.queryByRole("heading", { name: /の明細$/ })).not.toBeInTheDocument();
+      expect(screen.getByTestId("location-search")).toHaveTextContent(/^\?year=2025$/);
+    });
+
+    it("年を切り替えると明細を閉じる", async () => {
+      const user = renderPage("/expenses?year=2025&month=10");
+      await screen.findByRole("heading", { level: 3, name: "2025年10月の明細" });
+
+      await user.click(screen.getByRole("link", { name: "次の年" }));
+
+      expect(
+        await screen.findByRole("heading", { level: 3, name: "2026年の書籍費" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: /の明細$/ })).not.toBeInTheDocument();
+      expect(screen.getByTestId("location-search")).toHaveTextContent(/^\?year=2026$/);
+    });
+
+    it("取得に失敗したらエラーを表示する", async () => {
+      vi.mocked(fetchMonthExpenses).mockRejectedValue(networkError());
+      renderPage("/expenses?year=2025&month=10");
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("サーバーに接続できません");
+      expect(
+        screen.getByRole("heading", { level: 3, name: "2025年10月の明細" }),
+      ).toBeInTheDocument();
     });
   });
 });

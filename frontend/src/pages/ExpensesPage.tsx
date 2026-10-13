@@ -1,23 +1,32 @@
 import { useCallback } from "react";
 import { Link, useSearchParams } from "react-router";
 import {
+  type ExpensePurchase,
   type MonthlyExpense,
   type YearlyExpense,
+  fetchMonthExpenses,
   fetchYearExpenses,
   fetchYearlyExpenses,
 } from "../api/expenses.ts";
 import AmountBar from "../components/AmountBar.tsx";
 import ErrorMessage from "../components/ErrorMessage.tsx";
 import { useApiData } from "../hooks/useApiData.ts";
-import { formatYen, parseYear } from "../utils/format.ts";
+import { formatDate } from "../utils/date.ts";
+import { formatYen, parseMonth, parseYear } from "../utils/format.ts";
 import styles from "./ExpensesPage.module.css";
 
 // バックエンドの集計APIが受け付ける年の範囲
 const MIN_YEAR = 1;
 const MAX_YEAR = 9999;
 
+/** 年の書籍費の表示。月の明細は閉じる */
 function yearPath(year: number): string {
   return `/expenses?year=${year}`;
+}
+
+/** 年の書籍費と、その月の明細の表示 */
+function monthPath(year: number, month: number): string {
+  return `/expenses?year=${year}&month=${month}`;
 }
 
 function maxTotal(rows: { total: number }[]): number {
@@ -64,7 +73,15 @@ function YearlyTable({ rows, selectedYear }: { rows: YearlyExpense[]; selectedYe
   );
 }
 
-function MonthlyTable({ year, rows }: { year: number; rows: MonthlyExpense[] }) {
+function MonthlyTable({
+  year,
+  rows,
+  selectedMonth,
+}: {
+  year: number;
+  rows: MonthlyExpense[];
+  selectedMonth: number | null;
+}) {
   const max = maxTotal(rows);
   return (
     <table className={styles.table} aria-label={`${year}年の月ごとの書籍費`}>
@@ -82,9 +99,15 @@ function MonthlyTable({ year, rows }: { year: number; rows: MonthlyExpense[] }) 
       </thead>
       <tbody>
         {rows.map((row) => (
-          <tr key={row.month}>
+          <tr key={row.month} className={row.month === selectedMonth ? styles.selected : undefined}>
             <th scope="row" className={styles.label}>
-              {row.month}月
+              {/* 購入のない月も、明細が空であることを確かめられるようリンクにする */}
+              <Link
+                to={monthPath(year, row.month)}
+                aria-current={row.month === selectedMonth ? "true" : undefined}
+              >
+                {row.month}月
+              </Link>
             </th>
             <td className={styles.number}>{row.count}件</td>
             <td className={styles.number}>{formatYen(row.total)}</td>
@@ -120,12 +143,12 @@ function YearlySection({ selectedYear }: { selectedYear: number }) {
 }
 
 /** 選んだ年の年額と、月ごとの書籍費の表 */
-function YearSection({ year }: { year: number }) {
+function YearSection({ year, selectedMonth }: { year: number; selectedMonth: number | null }) {
   const yearDetail = useApiData(useCallback(() => fetchYearExpenses(year), [year]));
 
   return (
     <section className={styles.section}>
-      <div className={styles.yearHeader}>
+      <div className={styles.sectionHeader}>
         <h3>{year}年の書籍費</h3>
         <nav aria-label="年の切り替え" className={styles.yearNav}>
           {year > MIN_YEAR && <Link to={yearPath(year - 1)}>前の年</Link>}
@@ -141,24 +164,87 @@ function YearSection({ year }: { year: number }) {
           <p className={styles.yearTotal}>
             年額 <strong>{formatYen(yearDetail.data.total)}</strong>（{yearDetail.data.count}件）
           </p>
-          <MonthlyTable year={year} rows={yearDetail.data.months} />
+          <MonthlyTable year={year} rows={yearDetail.data.months} selectedMonth={selectedMonth} />
         </>
       )}
     </section>
   );
 }
 
+function PurchaseTable({ purchases, label }: { purchases: ExpensePurchase[]; label: string }) {
+  return (
+    <table className={styles.table} aria-label={label}>
+      <thead>
+        <tr>
+          <th scope="col">購入日</th>
+          <th scope="col">書名</th>
+          <th scope="col">購入店</th>
+          <th scope="col" className={styles.number}>
+            金額
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {purchases.map((purchase) => (
+          <tr key={purchase.id}>
+            <td className={styles.date}>{formatDate(purchase.purchased_on)}</td>
+            <th scope="row" className={styles.label}>
+              <Link to={`/books/${purchase.book.id}`}>{purchase.book.title}</Link>
+            </th>
+            <td>{purchase.store}</td>
+            <td className={styles.number}>{formatYen(purchase.amount)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+/** 選んだ月の購入記録の明細 */
+function MonthSection({ year, month }: { year: number; month: number }) {
+  const monthDetail = useApiData(useCallback(() => fetchMonthExpenses(year, month), [year, month]));
+  const title = `${year}年${month}月の明細`;
+
+  return (
+    <section className={styles.section}>
+      <div className={styles.sectionHeader}>
+        <h3>{title}</h3>
+        <Link to={yearPath(year)}>明細を閉じる</Link>
+      </div>
+      {monthDetail.status === "loading" && <p>読み込み中…</p>}
+      {monthDetail.status === "error" && (
+        <ErrorMessage messages={monthDetail.error.details.map((detail) => detail.msg)} />
+      )}
+      {monthDetail.status === "success" &&
+        (monthDetail.data.purchases.length === 0 ? (
+          <p>この月の購入記録はありません</p>
+        ) : (
+          <>
+            <PurchaseTable purchases={monthDetail.data.purchases} label={title} />
+            <p className={styles.monthTotal}>
+              合計 <strong>{formatYen(monthDetail.data.total)}</strong>
+              {`（${monthDetail.data.count}件）`}
+            </p>
+          </>
+        ))}
+    </section>
+  );
+}
+
 function ExpensesPage() {
-  // 選んだ年は URL（/expenses?year=…）に持たせ、再読み込みや「戻る」でも同じ年を表示する
+  // 選んだ年と月は URL（/expenses?year=…&month=…）に持たせ、
+  // 再読み込みや「戻る」でも同じ表示に戻るようにする
   const [searchParams] = useSearchParams();
   const year = parseYear(searchParams.get("year")) ?? new Date().getFullYear();
+  const month = parseMonth(searchParams.get("month"));
 
   return (
     <>
       <h2>書籍費</h2>
       <p className={styles.note}>購入記録の金額（実際に支払った金額）を、購入日で集計します。</p>
       <YearlySection selectedYear={year} />
-      <YearSection year={year} />
+      <YearSection year={year} selectedMonth={month} />
+      {month !== null && <MonthSection year={year} month={month} />}
     </>
   );
 }

@@ -27,3 +27,11 @@ export function parseYear(value: string | null): number | null {
   }
   return Number(value);
 }
+
+/** URLの月（/expenses?month=…）を数値にする。1〜12 の整数でなければ null */
+export function parseMonth(value: string | null): number | null {
+  if (value === null || !/^([1-9]|1[0-2])$/.test(value)) {
+    return null;
+  }
+  return Number(value);
+}

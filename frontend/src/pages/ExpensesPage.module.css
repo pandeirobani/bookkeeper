@@ -13,7 +13,7 @@
   font-size: 18px;
 }
 
-.yearHeader {
+.sectionHeader {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -21,7 +21,7 @@
   margin-bottom: 12px;
 }
 
-.yearHeader h3 {
+.sectionHeader h3 {
   margin: 0;
 }
 
@@ -73,7 +73,17 @@
   width: 50%;
 }
 
-/* 下の段に表示している年の行 */
+/* 表示している年の行と、明細を開いている月の行 */
 .selected .label {
   font-weight: 600;
+}
+
+.date {
+  white-space: nowrap;
+}
+
+.monthTotal {
+  margin-top: 8px;
+  color: var(--text-h);
+  text-align: right;
 }
