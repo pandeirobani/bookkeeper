@@ -1,0 +1,15 @@
+.track {
+  display: block;
+  width: 100%;
+  min-width: 80px;
+  height: 12px;
+}
+
+.bar {
+  display: block;
+  /* 一番大きい金額に比べてとても小さい金額でも、0円と見分けられるようにする */
+  min-width: 2px;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+}
