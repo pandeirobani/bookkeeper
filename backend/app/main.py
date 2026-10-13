@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.errors import http_exception_handler, request_validation_error_handler
-from app.routers import books, isbn_lookup, purchases, reading_records
+from app.routers import books, expenses, isbn_lookup, purchases, reading_records
 
 app = FastAPI(title="BookKeeper API")
 app.add_exception_handler(RequestValidationError, request_validation_error_handler)
@@ -16,6 +16,7 @@ app.include_router(books.router)
 app.include_router(purchases.router)
 app.include_router(reading_records.router)
 app.include_router(isbn_lookup.router)
+app.include_router(expenses.router)
 
 
 class HealthResponse(BaseModel):

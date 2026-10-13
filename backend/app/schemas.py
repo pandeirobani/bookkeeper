@@ -254,3 +254,13 @@ class ReadingRecordResponse(BaseModel):
     started_at: date | None
     finished_at: date | None
     memo: str | None
+
+
+class YearlyExpenseResponse(BaseModel):
+    """1年分の書籍費の合計"""
+
+    year: int
+    # その年の購入記録の金額（purchases.amount）の合計（円）
+    total: int
+    # その年の購入記録の件数
+    count: int
