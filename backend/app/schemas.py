@@ -284,8 +284,8 @@ class YearExpenseDetailResponse(BaseModel):
     months: list[MonthlyExpenseResponse]
 
 
-class ExpenseBookResponse(BaseModel):
-    """書籍費の明細に添える本の情報。本の詳細画面へのリンクと表示に使う"""
+class BookSummaryResponse(BaseModel):
+    """一覧や明細に添える本の情報。本の詳細画面へのリンクと表示に使う"""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -302,7 +302,7 @@ class ExpensePurchaseResponse(BaseModel):
     amount: int
     store: str | None
     memo: str | None
-    book: ExpenseBookResponse
+    book: BookSummaryResponse
 
 
 class MonthExpenseDetailResponse(BaseModel):
@@ -314,3 +314,15 @@ class MonthExpenseDetailResponse(BaseModel):
     count: int
     # 購入日の古い順。同じ日の中は記録した順
     purchases: list[ExpensePurchaseResponse]
+
+
+class TsundokuResponse(BaseModel):
+    """積読の本1冊。購入日と金額は、その本の最初の購入のもの"""
+
+    book: BookSummaryResponse
+    status: Literal["unread", "reading"]
+    # 最初の購入日。この日から積んでいるとみなす
+    first_purchased_on: date
+    first_purchase_amount: int
+    # その本の購入記録の件数（買い直した本では2件以上）
+    purchase_count: int

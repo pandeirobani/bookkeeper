@@ -8,7 +8,7 @@ from sqlalchemy import Integer, cast, func, select
 from app.models import Book, Purchase
 from app.routers.books import SessionDep
 from app.schemas import (
-    ExpenseBookResponse,
+    BookSummaryResponse,
     ExpensePurchaseResponse,
     MonthExpenseDetailResponse,
     MonthlyExpenseResponse,
@@ -104,7 +104,7 @@ def get_month_expenses(
             amount=purchase.amount,
             store=purchase.store,
             memo=purchase.memo,
-            book=ExpenseBookResponse.model_validate(book),
+            book=BookSummaryResponse.model_validate(book),
         )
         for purchase, book in rows
     ]
