@@ -1,6 +1,40 @@
+/* 検索欄と読書状態の絞り込みを横に並べ、画面が狭ければ折り返す */
 .search {
-  max-width: 400px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 16px 32px;
   margin-bottom: 16px;
+}
+
+.query {
+  flex: 1 1 280px;
+  max-width: 400px;
+}
+
+.statuses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+/* FormField のラベル（form.module.css の .label）と同じ見た目にする */
+.legend {
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 0;
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.statusOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
 }
 
 .count {
@@ -36,4 +70,8 @@
 .disposed,
 .disposed .title {
   color: var(--text-muted);
+}
+
+.nowrap {
+  white-space: nowrap;
 }

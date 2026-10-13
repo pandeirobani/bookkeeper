@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchesBookQuery } from "./search.ts";
+import { matchesBookQuery, matchesReadingStatuses, parseReadingStatuses } from "./search.ts";
 
 const BOOK = { title: "ノルウェイの森", author: "村上春樹" };
 
@@ -55,5 +55,36 @@ describe("matchesBookQuery", () => {
 
   it.each(["", " ", "　"])("空の検索語 %j にはすべての本が一致する", (query) => {
     expect(matchesBookQuery(BOOK, query)).toBe(true);
+  });
+});
+
+describe("parseReadingStatuses", () => {
+  it("未読・読書中・読了の順にそろえる", () => {
+    expect(parseReadingStatuses(["finished", "unread"])).toEqual(["unread", "finished"]);
+  });
+
+  it("知らない値は無視し、同じ値は1つにする", () => {
+    expect(parseReadingStatuses(["reading", "tsundoku", "", "reading"])).toEqual(["reading"]);
+  });
+
+  it("値がなければ空の配列にする", () => {
+    expect(parseReadingStatuses([])).toEqual([]);
+  });
+});
+
+describe("matchesReadingStatuses", () => {
+  it("何も選んでいなければ、どの本も当てはまる", () => {
+    expect(matchesReadingStatuses("finished", [])).toBe(true);
+    expect(matchesReadingStatuses(null, [])).toBe(true);
+  });
+
+  it("選んだ読書状態のどれかなら当てはまる", () => {
+    expect(matchesReadingStatuses("unread", ["unread", "reading"])).toBe(true);
+    expect(matchesReadingStatuses("reading", ["unread", "reading"])).toBe(true);
+    expect(matchesReadingStatuses("finished", ["unread", "reading"])).toBe(false);
+  });
+
+  it("読書記録のない本は、読書状態を選んでいると当てはまらない", () => {
+    expect(matchesReadingStatuses(null, ["unread"])).toBe(false);
   });
 });

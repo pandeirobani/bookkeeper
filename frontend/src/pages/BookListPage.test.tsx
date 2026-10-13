@@ -74,15 +74,24 @@ describe("BookListPage", () => {
         author: null,
         publisher: null,
         published_date: null,
+        reading_status: "reading",
       },
     ]);
     renderPage();
 
     expect(await screen.findByText("全2冊")).toBeInTheDocument();
     expect(bodyRows()).toEqual([
-      ["テスト書籍", "著者A,著者B", "テスト出版", "2024-05", ""],
-      ["書名だけの本", "", "", "", ""],
+      ["テスト書籍", "著者A,著者B", "テスト出版", "2024-05", "未読", ""],
+      ["書名だけの本", "", "", "", "読書中", ""],
     ]);
+  });
+
+  it("読書記録のない本は、状態を空欄にする", async () => {
+    vi.mocked(fetchBooks).mockResolvedValue([{ ...BOOK, reading_status: null }]);
+    renderPage();
+
+    await screen.findByText("全1冊");
+    expect(bodyRows()[0][4]).toBe("");
   });
 
   it("書名から本の詳細画面に移れる", async () => {
@@ -100,7 +109,7 @@ describe("BookListPage", () => {
     renderPage();
 
     await screen.findByText("全1冊");
-    expect(bodyRows()[0][4]).toBe("2026/10/10");
+    expect(bodyRows()[0][5]).toBe("2026/10/10");
   });
 
   it("前の画面からのメッセージがなければ、メッセージ欄を表示しない", async () => {
@@ -209,7 +218,7 @@ describe("BookListPage", () => {
 
       await user.type(await screen.findByRole("searchbox"), " 海辺 ノルウェイ ");
 
-      expect(screen.getByText("「海辺 ノルウェイ」に一致する本はありません")).toBeInTheDocument();
+      expect(screen.getByText("条件に一致する本はありません")).toBeInTheDocument();
       expect(screen.getByText("全3冊中0冊")).toBeInTheDocument();
       expect(screen.queryByRole("table")).not.toBeInTheDocument();
     });
@@ -230,6 +239,136 @@ describe("BookListPage", () => {
 
       await screen.findByText(/まだ本が登録されていません/);
       expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("読書状態の絞り込み", () => {
+    const BOOKS: BookListItem[] = [
+      { ...BOOK, id: 1, title: "未読の本", author: "村上春樹", reading_status: "unread" },
+      { ...BOOK, id: 2, title: "読書中の本", author: "村上春樹", reading_status: "reading" },
+      { ...BOOK, id: 3, title: "読了の本", author: "夏目漱石", reading_status: "finished" },
+      { ...BOOK, id: 4, title: "読書記録のない本", author: null, reading_status: null },
+    ];
+
+    function statusGroup(): HTMLElement {
+      return screen.getByRole("group", { name: "読書状態" });
+    }
+
+    it("未読・読書中・読了のチェックボックスを、最初は何も選ばずに表示する", async () => {
+      vi.mocked(fetchBooks).mockResolvedValue(BOOKS);
+      renderPage();
+
+      await screen.findByText("全4冊");
+      const checkboxes = within(statusGroup()).getAllByRole("checkbox");
+      expect(checkboxes.map((checkbox) => checkbox.parentElement?.textContent)).toEqual([
+        "未読",
+        "読書中",
+        "読了",
+      ]);
+      for (const checkbox of checkboxes) {
+        expect(checkbox).not.toBeChecked();
+      }
+      expect(bodyTitles()).toHaveLength(4);
+    });
+
+    it("選んだ読書状態の本だけを表示し、件数を示す", async () => {
+      vi.mocked(fetchBooks).mockResolvedValue(BOOKS);
+      const user = renderPage();
+
+      await user.click(await screen.findByRole("checkbox", { name: "読了" }));
+
+      expect(bodyTitles()).toEqual(["読了の本"]);
+      expect(screen.getByText("全4冊中1冊")).toBeInTheDocument();
+    });
+
+    it("複数選ぶと、そのどれかに当てはまる本を表示する", async () => {
+      vi.mocked(fetchBooks).mockResolvedValue(BOOKS);
+      const user = renderPage();
+
+      await user.click(await screen.findByRole("checkbox", { name: "未読" }));
+      await user.click(screen.getByRole("checkbox", { name: "読書中" }));
+
+      expect(bodyTitles()).toEqual(["未読の本", "読書中の本"]);
+      expect(screen.getByText("全4冊中2冊")).toBeInTheDocument();
+    });
+
+    it("選択をすべて外すと、読書記録のない本も含めてすべて表示する", async () => {
+      vi.mocked(fetchBooks).mockResolvedValue(BOOKS);
+      const user = renderPage();
+
+      await user.click(await screen.findByRole("checkbox", { name: "未読" }));
+      await user.click(screen.getByRole("checkbox", { name: "未読" }));
+
+      expect(bodyTitles()).toHaveLength(4);
+      expect(screen.getByText("全4冊")).toBeInTheDocument();
+    });
+
+    it("書名・著者の検索と組み合わせると、両方に当てはまる本を表示する", async () => {
+      vi.mocked(fetchBooks).mockResolvedValue(BOOKS);
+      const user = renderPage();
+
+      await user.type(await screen.findByRole("searchbox"), "村上");
+      await user.click(screen.getByRole("checkbox", { name: "読書中" }));
+
+      expect(bodyTitles()).toEqual(["読書中の本"]);
+      expect(screen.getByText("全4冊中1冊")).toBeInTheDocument();
+    });
+
+    it("当てはまる本がなければ、そのことを表示する", async () => {
+      vi.mocked(fetchBooks).mockResolvedValue([BOOKS[0]]);
+      const user = renderPage();
+
+      await user.click(await screen.findByRole("checkbox", { name: "読了" }));
+
+      expect(screen.getByText("条件に一致する本はありません")).toBeInTheDocument();
+      expect(screen.getByText("全1冊中0冊")).toBeInTheDocument();
+      expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    });
+
+    it("選んだ読書状態を、未読・読書中・読了の順でURLに入れ、外したらURLからも外す", async () => {
+      vi.mocked(fetchBooks).mockResolvedValue(BOOKS);
+      const user = renderPage();
+
+      await user.click(await screen.findByRole("checkbox", { name: "読了" }));
+      await user.click(screen.getByRole("checkbox", { name: "未読" }));
+      expect(screen.getByTestId("location-search")).toHaveTextContent(
+        "?status=unread&status=finished",
+      );
+
+      await user.click(screen.getByRole("checkbox", { name: "読了" }));
+      await user.click(screen.getByRole("checkbox", { name: "未読" }));
+      expect(screen.getByTestId("location-search")).toBeEmptyDOMElement();
+    });
+
+    it("検索語と読書状態を、両方ともURLに入れる", async () => {
+      vi.mocked(fetchBooks).mockResolvedValue(BOOKS);
+      const user = renderPage();
+
+      await user.type(await screen.findByRole("searchbox"), "村上");
+      await user.click(screen.getByRole("checkbox", { name: "未読" }));
+
+      expect(screen.getByTestId("location-search")).toHaveTextContent(
+        `?q=${encodeURIComponent("村上")}&status=unread`,
+      );
+    });
+
+    it("URLに読書状態があれば、チェックを入れて絞り込んだ状態で表示する", async () => {
+      vi.mocked(fetchBooks).mockResolvedValue(BOOKS);
+      renderPage("/?status=reading&status=finished");
+
+      expect(await screen.findByText("全4冊中2冊")).toBeInTheDocument();
+      expect(screen.getByRole("checkbox", { name: "未読" })).not.toBeChecked();
+      expect(screen.getByRole("checkbox", { name: "読書中" })).toBeChecked();
+      expect(screen.getByRole("checkbox", { name: "読了" })).toBeChecked();
+      expect(bodyTitles()).toEqual(["読書中の本", "読了の本"]);
+    });
+
+    it("URLの知らない読書状態は無視する", async () => {
+      vi.mocked(fetchBooks).mockResolvedValue(BOOKS);
+      renderPage("/?status=tsundoku");
+
+      expect(await screen.findByText("全4冊")).toBeInTheDocument();
+      expect(bodyTitles()).toHaveLength(4);
     });
   });
 

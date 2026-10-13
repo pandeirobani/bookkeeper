@@ -1,16 +1,21 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import { type Book, fetchBooks } from "../api/books.ts";
+import { type BookListItem, fetchBooks } from "../api/books.ts";
+import {
+  READING_STATUSES,
+  READING_STATUS_LABELS,
+  type ReadingStatus,
+} from "../api/readingRecords.ts";
 import ErrorMessage from "../components/ErrorMessage.tsx";
 import FormField from "../components/FormField.tsx";
 import SuccessMessage from "../components/SuccessMessage.tsx";
 import { useApiData } from "../hooks/useApiData.ts";
 import { useFlashMessage } from "../hooks/useFlashMessage.ts";
 import { formatDate } from "../utils/date.ts";
-import { matchesBookQuery } from "../utils/search.ts";
+import { matchesBookQuery, matchesReadingStatuses, parseReadingStatuses } from "../utils/search.ts";
 import styles from "./BookListPage.module.css";
 
-function BookTable({ books }: { books: Book[] }) {
+function BookTable({ books }: { books: BookListItem[] }) {
   return (
     <table className={styles.table} aria-labelledby="book-list-heading">
       <thead>
@@ -19,6 +24,7 @@ function BookTable({ books }: { books: Book[] }) {
           <th scope="col">著者</th>
           <th scope="col">出版社</th>
           <th scope="col">出版日</th>
+          <th scope="col">状態</th>
           <th scope="col">手放した日</th>
         </tr>
       </thead>
@@ -32,6 +38,10 @@ function BookTable({ books }: { books: Book[] }) {
             <td>{book.author}</td>
             <td>{book.publisher}</td>
             <td>{book.published_date}</td>
+            {/* 読書記録がない本（DBを直接変更した場合）は空欄にする */}
+            <td className={styles.nowrap}>
+              {book.reading_status === null ? null : READING_STATUS_LABELS[book.reading_status]}
+            </td>
             <td>{book.disposed_on === null ? null : formatDate(book.disposed_on)}</td>
           </tr>
         ))}
@@ -40,16 +50,25 @@ function BookTable({ books }: { books: Book[] }) {
   );
 }
 
-/** 検索欄と、検索語で絞り込んだ本の表 */
-function SearchableBookTable({ books }: { books: Book[] }) {
-  // 検索語は URL（/?q=…）にも持たせ、詳細画面から戻っても検索の結果が残るようにする
+/** 検索欄・読書状態の絞り込みと、それで絞り込んだ本の表 */
+function SearchableBookTable({ books }: { books: BookListItem[] }) {
+  // 検索語と読書状態は URL（/?q=…&status=…）にも持たせ、詳細画面から戻っても絞り込みが残るようにする
   const [searchParams, setSearchParams] = useSearchParams();
   // 検索欄の値は URL から取らず、この画面の状態として持つ。
   // React Router は URL の変更を startTransition で後から反映するため、URL から取ると
   // 入力の直後に値が一瞬元に戻り、日本語入力（IME）の変換中の文字が二重になる
   const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
-  const isSearching = query.trim() !== "";
-  const matchedBooks = isSearching ? books.filter((book) => matchesBookQuery(book, query)) : books;
+  // チェックボックスも、クリックの直後に表示が一瞬戻らないよう、同じく画面の状態として持つ
+  const [statuses, setStatuses] = useState(() =>
+    parseReadingStatuses(searchParams.getAll("status")),
+  );
+  const isFiltering = query.trim() !== "" || statuses.length > 0;
+  const matchedBooks = isFiltering
+    ? books.filter(
+        (book) =>
+          matchesBookQuery(book, query) && matchesReadingStatuses(book.reading_status, statuses),
+      )
+    : books;
 
   function handleQueryChange(value: string) {
     setQuery(value);
@@ -67,30 +86,62 @@ function SearchableBookTable({ books }: { books: Book[] }) {
     );
   }
 
+  function handleStatusChange(status: ReadingStatus, checked: boolean) {
+    // URL での並びがクリックの順で変わらないよう、いつも 未読・読書中・読了 の順にする
+    const next = READING_STATUSES.filter((s) => (s === status ? checked : statuses.includes(s)));
+    setStatuses(next);
+    setSearchParams(
+      (params) => {
+        params.delete("status");
+        for (const s of next) {
+          params.append("status", s);
+        }
+        return params;
+      },
+      // 検索語と同じく、絞り込みを変えるたびに履歴が増えないようにする
+      { replace: true },
+    );
+  }
+
   return (
     <>
       <search className={styles.search}>
-        <FormField
-          id="book-search"
-          label="書名・著者で検索"
-          hint="空白で区切ると、すべての語を含む本を探します"
-        >
-          {(controlProps) => (
-            <input
-              {...controlProps}
-              type="search"
-              value={query}
-              onChange={(event) => handleQueryChange(event.target.value)}
-            />
-          )}
-        </FormField>
+        <div className={styles.query}>
+          <FormField
+            id="book-search"
+            label="書名・著者で検索"
+            hint="空白で区切ると、すべての語を含む本を探します"
+          >
+            {(controlProps) => (
+              <input
+                {...controlProps}
+                type="search"
+                value={query}
+                onChange={(event) => handleQueryChange(event.target.value)}
+              />
+            )}
+          </FormField>
+        </div>
+        <fieldset className={styles.statuses}>
+          <legend className={styles.legend}>読書状態</legend>
+          {READING_STATUSES.map((status) => (
+            <label key={status} className={styles.statusOption}>
+              <input
+                type="checkbox"
+                checked={statuses.includes(status)}
+                onChange={(event) => handleStatusChange(status, event.target.checked)}
+              />
+              {READING_STATUS_LABELS[status]}
+            </label>
+          ))}
+        </fieldset>
       </search>
       {/* 絞り込んだ件数を読み上げでも伝える。role="status" は完了メッセージの欄に使っているので付けない */}
       <p className={styles.count} aria-live="polite">
-        {isSearching ? `全${books.length}冊中${matchedBooks.length}冊` : `全${books.length}冊`}
+        {isFiltering ? `全${books.length}冊中${matchedBooks.length}冊` : `全${books.length}冊`}
       </p>
       {matchedBooks.length === 0 ? (
-        <p>「{query.trim()}」に一致する本はありません</p>
+        <p>条件に一致する本はありません</p>
       ) : (
         <BookTable books={matchedBooks} />
       )}
