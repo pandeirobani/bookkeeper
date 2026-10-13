@@ -264,3 +264,21 @@ class YearlyExpenseResponse(BaseModel):
     total: int
     # その年の購入記録の件数
     count: int
+
+
+class MonthlyExpenseResponse(BaseModel):
+    """1か月分の書籍費の合計"""
+
+    month: int
+    total: int
+    count: int
+
+
+class YearExpenseDetailResponse(BaseModel):
+    """1年分の書籍費の合計と、その月ごとの内訳"""
+
+    year: int
+    total: int
+    count: int
+    # 1月から12月まで、購入のない月も含めて必ず12か月分
+    months: list[MonthlyExpenseResponse]

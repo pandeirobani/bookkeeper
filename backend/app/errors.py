@@ -42,6 +42,8 @@ FIELD_LABELS = {
     # パスのID
     "book_id": "本のID",
     "purchase_id": "購入記録のID",
+    # 書籍費の集計
+    "year": "年",
 }
 
 
