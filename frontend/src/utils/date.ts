@@ -32,3 +32,21 @@ export function formatLocalDate(utcDateTime: string, timeZone?: string): string 
     timeZone,
   }).format(new Date(utcDateTime));
 }
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/** 日付だけの値（YYYY-MM-DD）を、UTCのその日の0時のミリ秒にする */
+function toUtcMidnight(value: string): number {
+  const [year, month, day] = value.split("-").map(Number);
+  return Date.UTC(year, month - 1, day);
+}
+
+/**
+ * 日付だけの値（YYYY-MM-DD）の from から to までの日数を返す。to が前なら負の数。
+ *
+ * どちらもUTCの0時として計算するので、タイムゾーンや夏時間で1日ずれることはない。
+ * 例: 積読の本を積んでいる日数 daysBetween(購入日, todayLocal())
+ */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((toUtcMidnight(to) - toUtcMidnight(from)) / MS_PER_DAY);
+}
