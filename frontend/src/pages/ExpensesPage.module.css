@@ -87,3 +87,8 @@
   color: var(--text-h);
   text-align: right;
 }
+
+/* フォーカスはスクロールに合わせてプログラムで移すだけで、操作できる要素ではないので枠を出さない */
+.detailHeading:focus {
+  outline: none;
+}

@@ -1,5 +1,5 @@
-import { useCallback } from "react";
-import { Link, useSearchParams } from "react-router";
+import { useCallback, useEffect, useRef } from "react";
+import { Link, useLocation, useSearchParams } from "react-router";
 import {
   type ExpensePurchase,
   type MonthlyExpense,
@@ -13,6 +13,7 @@ import ErrorMessage from "../components/ErrorMessage.tsx";
 import { useApiData } from "../hooks/useApiData.ts";
 import { formatDate } from "../utils/date.ts";
 import { formatYen, parseMonth, parseYear } from "../utils/format.ts";
+import { scrollOffsetToReveal } from "../utils/scroll.ts";
 import styles from "./ExpensesPage.module.css";
 
 // バックエンドの集計APIが受け付ける年の範囲
@@ -27,6 +28,24 @@ function yearPath(year: number): string {
 /** 年の書籍費と、その月の明細の表示 */
 function monthPath(year: number, month: number): string {
   return `/expenses?year=${year}&month=${month}`;
+}
+
+/**
+ * 月額の表で月をクリックしたときに付ける location state。
+ * URL を直接開いたときや再読み込みでは付かないので、クリックしたときだけ明細へスクロールできる
+ */
+const SCROLL_TO_MONTH_DETAIL = { scrollToMonthDetail: true };
+
+/** 明細へスクロールしたときに、画面の上下の端に取る余白（px） */
+const SCROLL_MARGIN = 16;
+
+function shouldScrollToMonthDetail(state: unknown): boolean {
+  return (
+    typeof state === "object" &&
+    state !== null &&
+    "scrollToMonthDetail" in state &&
+    state.scrollToMonthDetail === true
+  );
 }
 
 function maxTotal(rows: { total: number }[]): number {
@@ -104,6 +123,7 @@ function MonthlyTable({
               {/* 購入のない月も、明細が空であることを確かめられるようリンクにする */}
               <Link
                 to={monthPath(year, row.month)}
+                state={SCROLL_TO_MONTH_DETAIL}
                 aria-current={row.month === selectedMonth ? "true" : undefined}
               >
                 {row.month}月
@@ -205,10 +225,47 @@ function MonthSection({ year, month }: { year: number; month: number }) {
   const monthDetail = useApiData(useCallback(() => fetchMonthExpenses(year, month), [year, month]));
   const title = `${year}年${month}月の明細`;
 
+  // 月をクリックしたときは、見出しから月の合計まで（明細の部分の全体）が見えるようスクロールし、
+  // 見出しにフォーカスを移す。画面に収まらなければ、見出しを画面の上に合わせる。
+  // 合計の位置は明細を読み込むまでわからないので、取得が終わって（成功・失敗とも）からにする。
+  // 履歴の1件（location.key）につき一度だけにする
+  const location = useLocation();
+  const scrollToDetail = shouldScrollToMonthDetail(location.state);
+  const loaded = monthDetail.status !== "loading";
+  const sectionRef = useRef<HTMLElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const scrolledKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const section = sectionRef.current;
+    const heading = headingRef.current;
+    if (
+      !scrollToDetail ||
+      !loaded ||
+      scrolledKeyRef.current === location.key ||
+      section === null ||
+      heading === null
+    ) {
+      return;
+    }
+    scrolledKeyRef.current = location.key;
+
+    const { top, bottom } = section.getBoundingClientRect();
+    const offset = scrollOffsetToReveal(top, bottom, window.innerHeight, SCROLL_MARGIN);
+    if (offset !== 0) {
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.scrollBy({ top: offset, behavior: reduceMotion ? "instant" : "smooth" });
+    }
+    // フォーカスでのスクロールは、上のスクロールと重なるので止める
+    heading.focus({ preventScroll: true });
+  }, [location.key, scrollToDetail, loaded]);
+
   return (
-    <section className={styles.section}>
+    <section ref={sectionRef} className={styles.section}>
       <div className={styles.sectionHeader}>
-        <h3>{title}</h3>
+        {/* スクロールのときにフォーカスを移せるよう tabIndex={-1} を付ける（Tabキーでは止まらない） */}
+        <h3 ref={headingRef} tabIndex={-1} className={styles.detailHeading}>
+          {title}
+        </h3>
         <Link to={yearPath(year)}>明細を閉じる</Link>
       </div>
       {monthDetail.status === "loading" && <p>読み込み中…</p>}

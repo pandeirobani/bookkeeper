@@ -80,6 +80,33 @@ function bodyRows(table: HTMLElement): string[][] {
     .map((row) => Array.from(row.querySelectorAll("th, td"), (cell) => cell.textContent ?? ""));
 }
 
+const scrollBy = vi.fn<(options: ScrollToOptions) => void>();
+const matchMedia = vi.fn<(query: string) => { matches: boolean }>();
+
+/** getBoundingClientRect() の値。使うのは上端と下端だけ */
+function rect(top: number, bottom: number): DOMRect {
+  const height = bottom - top;
+  return {
+    x: 0,
+    y: top,
+    width: 0,
+    height,
+    top,
+    right: 0,
+    bottom,
+    left: 0,
+    toJSON: () => ({}),
+  };
+}
+
+/**
+ * 明細の部分の画面上の位置を決める。jsdom では要素の位置や大きさを測れないので差し替える。
+ * 画面の高さは beforeEach で 800px にしている
+ */
+function placeDetailAt(top: number, bottom: number) {
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(rect(top, bottom));
+}
+
 function networkError(): ApiError {
   return new ApiError(0, [{ type: "network_error", loc: [], msg: "サーバーに接続できません" }]);
 }
@@ -96,13 +123,22 @@ describe("ExpensesPage", () => {
     vi.mocked(fetchMonthExpenses).mockImplementation((year, month) =>
       Promise.resolve(makeMonthDetail(year, month)),
     );
+    // jsdom にはスクロールと、利用者の設定（視差効果を減らす）を調べる仕組みがないので用意する
+    vi.stubGlobal("scrollBy", scrollBy);
+    vi.stubGlobal("innerHeight", 800);
+    vi.stubGlobal("matchMedia", matchMedia);
+    matchMedia.mockReturnValue({ matches: false });
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
     vi.mocked(fetchYearlyExpenses).mockReset();
     vi.mocked(fetchYearExpenses).mockReset();
     vi.mocked(fetchMonthExpenses).mockReset();
+    scrollBy.mockReset();
+    matchMedia.mockReset();
   });
 
   describe("年ごとの書籍費", () => {
@@ -353,6 +389,122 @@ describe("ExpensesPage", () => {
       expect(
         screen.getByRole("heading", { level: 3, name: "2025年10月の明細" }),
       ).toBeInTheDocument();
+    });
+
+    // スクロールする量の場合分けは scrollOffsetToReveal のテスト（utils/scroll.test.ts）で確かめる
+    describe("明細へのスクロール", () => {
+      function detailHeading(year: number, month: number): HTMLElement {
+        return screen.getByRole("heading", { level: 3, name: `${year}年${month}月の明細` });
+      }
+
+      it("明細を読み込み終えてから、合計まで見えるようにスクロールし、見出しにフォーカスを移す", async () => {
+        let resolve: (detail: MonthExpenseDetail) => void = () => {};
+        vi.mocked(fetchMonthExpenses).mockReturnValue(
+          new Promise((r) => {
+            resolve = r;
+          }),
+        );
+        // 画面（高さ800px）の下にはみ出している
+        placeDetailAt(900, 1200);
+        const user = renderPage("/expenses?year=2025");
+
+        await user.click(await screen.findByRole("link", { name: "10月" }));
+
+        // 読み込み中は、合計の位置がわからないのでスクロールしない
+        expect(screen.getByText("読み込み中…")).toBeInTheDocument();
+        expect(scrollBy).not.toHaveBeenCalled();
+        expect(detailHeading(2025, 10)).not.toHaveFocus();
+
+        resolve(makeMonthDetail(2025, 10, PURCHASES));
+        await screen.findByRole("table", { name: "2025年10月の明細" });
+
+        // 下端 1200px を、画面の下端から余白16pxの 784px に合わせる
+        expect(scrollBy).toHaveBeenCalledExactlyOnceWith({ top: 416, behavior: "smooth" });
+        expect(detailHeading(2025, 10)).toHaveFocus();
+      });
+
+      it("画面に収まらなければ、見出しが画面の上に来るようにスクロールする", async () => {
+        vi.mocked(fetchMonthExpenses).mockResolvedValue(makeMonthDetail(2025, 10, PURCHASES));
+        placeDetailAt(900, 3000);
+        const user = renderPage("/expenses?year=2025");
+
+        await user.click(await screen.findByRole("link", { name: "10月" }));
+        await screen.findByRole("table", { name: "2025年10月の明細" });
+
+        // 上端 900px を、画面の上端から余白16pxの位置に合わせる
+        expect(scrollBy).toHaveBeenCalledExactlyOnceWith({ top: 884, behavior: "smooth" });
+      });
+
+      it("明細の全体が見えていればスクロールせず、見出しにフォーカスだけ移す", async () => {
+        vi.mocked(fetchMonthExpenses).mockResolvedValue(makeMonthDetail(2025, 10, PURCHASES));
+        placeDetailAt(100, 500);
+        const user = renderPage("/expenses?year=2025");
+
+        await user.click(await screen.findByRole("link", { name: "10月" }));
+        await screen.findByRole("table", { name: "2025年10月の明細" });
+
+        expect(scrollBy).not.toHaveBeenCalled();
+        expect(detailHeading(2025, 10)).toHaveFocus();
+      });
+
+      it("購入記録がない月でもスクロールする", async () => {
+        placeDetailAt(900, 1000);
+        const user = renderPage("/expenses?year=2025");
+
+        await user.click(await screen.findByRole("link", { name: "4月" }));
+        await screen.findByText("この月の購入記録はありません");
+
+        expect(scrollBy).toHaveBeenCalledExactlyOnceWith({ top: 216, behavior: "smooth" });
+        expect(detailHeading(2025, 4)).toHaveFocus();
+      });
+
+      it("取得に失敗したときもスクロールする", async () => {
+        vi.mocked(fetchMonthExpenses).mockRejectedValue(networkError());
+        placeDetailAt(900, 1000);
+        const user = renderPage("/expenses?year=2025");
+
+        await user.click(await screen.findByRole("link", { name: "10月" }));
+        await screen.findByRole("alert");
+
+        expect(scrollBy).toHaveBeenCalledExactlyOnceWith({ top: 216, behavior: "smooth" });
+        expect(detailHeading(2025, 10)).toHaveFocus();
+      });
+
+      it("明細を開いたまま別の月をクリックしても、その月の明細へスクロールする", async () => {
+        placeDetailAt(900, 1000);
+        const user = renderPage("/expenses?year=2025");
+        await user.click(await screen.findByRole("link", { name: "10月" }));
+        await screen.findByText("この月の購入記録はありません");
+
+        await user.click(screen.getByRole("link", { name: "3月" }));
+        await screen.findByRole("heading", { level: 3, name: "2025年3月の明細" });
+        await screen.findByText("この月の購入記録はありません");
+
+        expect(scrollBy).toHaveBeenCalledTimes(2);
+        expect(detailHeading(2025, 3)).toHaveFocus();
+      });
+
+      it("URLで直接明細を開いたときはスクロールしない", async () => {
+        placeDetailAt(900, 1000);
+        renderPage("/expenses?year=2025&month=10");
+
+        await screen.findByText("この月の購入記録はありません");
+        expect(scrollBy).not.toHaveBeenCalled();
+        expect(detailHeading(2025, 10)).not.toHaveFocus();
+      });
+
+      it("視差効果を減らす設定では、なめらかにせずすぐに移動する", async () => {
+        matchMedia.mockImplementation((query) => ({
+          matches: query === "(prefers-reduced-motion: reduce)",
+        }));
+        placeDetailAt(900, 1000);
+        const user = renderPage("/expenses?year=2025");
+
+        await user.click(await screen.findByRole("link", { name: "10月" }));
+        await screen.findByText("この月の購入記録はありません");
+
+        expect(scrollBy).toHaveBeenCalledExactlyOnceWith({ top: 216, behavior: "instant" });
+      });
     });
   });
 });
