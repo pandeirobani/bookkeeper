@@ -14,6 +14,9 @@ vi.mock("./api/expenses.ts", () => ({
   fetchYearlyExpenses: vi.fn().mockResolvedValue([]),
   fetchYearExpenses: vi.fn().mockResolvedValue({ year: 2026, total: 0, count: 0, months: [] }),
 }));
+vi.mock("./api/tsundoku.ts", () => ({
+  fetchTsundoku: vi.fn().mockResolvedValue([]),
+}));
 
 function renderApp(path = "/") {
   render(
@@ -53,6 +56,16 @@ describe("App", () => {
     expect(screen.getByRole("heading", { level: 2, name: "本を登録" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "本を登録" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "本の一覧" })).not.toHaveAttribute("aria-current");
+  });
+
+  it("メニューの「積読」から積読の画面に移れる", async () => {
+    const user = userEvent.setup();
+    renderApp("/");
+
+    await user.click(screen.getByRole("link", { name: "積読" }));
+
+    expect(screen.getByRole("heading", { level: 2, name: "積読" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "積読" })).toHaveAttribute("aria-current", "page");
   });
 
   it("メニューの「書籍費」から書籍費の画面に移れる", async () => {

@@ -26,6 +26,11 @@ function Layout() {
               </NavLink>
             </li>
             <li>
+              <NavLink to="/tsundoku" className={navLinkClassName}>
+                積読
+              </NavLink>
+            </li>
+            <li>
               <NavLink to="/expenses" className={navLinkClassName}>
                 書籍費
               </NavLink>
