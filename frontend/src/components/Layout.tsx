@@ -25,6 +25,11 @@ function Layout() {
                 本を登録
               </NavLink>
             </li>
+            <li>
+              <NavLink to="/expenses" className={navLinkClassName}>
+                書籍費
+              </NavLink>
+            </li>
           </ul>
         </nav>
       </header>

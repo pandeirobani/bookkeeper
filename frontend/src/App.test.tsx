@@ -10,6 +10,10 @@ vi.mock("./api/health.ts", () => ({
 vi.mock("./api/books.ts", () => ({
   fetchBooks: vi.fn().mockResolvedValue([]),
 }));
+vi.mock("./api/expenses.ts", () => ({
+  fetchYearlyExpenses: vi.fn().mockResolvedValue([]),
+  fetchYearExpenses: vi.fn().mockResolvedValue({ year: 2026, total: 0, count: 0, months: [] }),
+}));
 
 function renderApp(path = "/") {
   render(
@@ -49,6 +53,16 @@ describe("App", () => {
     expect(screen.getByRole("heading", { level: 2, name: "本を登録" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "本を登録" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "本の一覧" })).not.toHaveAttribute("aria-current");
+  });
+
+  it("メニューの「書籍費」から書籍費の画面に移れる", async () => {
+    const user = userEvent.setup();
+    renderApp("/");
+
+    await user.click(screen.getByRole("link", { name: "書籍費" }));
+
+    expect(screen.getByRole("heading", { level: 2, name: "書籍費" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "書籍費" })).toHaveAttribute("aria-current", "page");
   });
 
   it("存在しないURLでは「ページが見つかりません」を表示する", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatYen, parseId } from "./format.ts";
+import { formatYen, parseId, parseYear } from "./format.ts";
 
 describe("formatYen", () => {
   it.each([
@@ -24,6 +24,23 @@ describe("parseId", () => {
     "%j は null にする",
     (value) => {
       expect(parseId(value)).toBeNull();
+    },
+  );
+});
+
+describe("parseYear", () => {
+  it.each([
+    ["1", 1],
+    ["2026", 2026],
+    ["9999", 9999],
+  ])("%j を %d にする", (value, expected) => {
+    expect(parseYear(value)).toBe(expected);
+  });
+
+  it.each([null, "", "0", "02026", "10000", "-1", "2026.5", "abc", "2026a"])(
+    "%j は null にする",
+    (value) => {
+      expect(parseYear(value)).toBeNull();
     },
   );
 });
