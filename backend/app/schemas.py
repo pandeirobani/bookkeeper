@@ -164,6 +164,13 @@ class BookResponse(BaseModel):
     created_at: UtcDatetime
 
 
+class BookListItemResponse(BookResponse):
+    """書籍一覧の1冊。読書状態で絞り込めるよう、書誌情報に読書状態を添える"""
+
+    # APIから登録した本には読書記録が必ずあるので、NULLはDBを直接変更した場合だけ
+    reading_status: Literal["unread", "reading", "finished"] | None
+
+
 class IsbnLookupResponse(BaseModel):
     """ISBNから取得した書誌情報のレスポンス。保存はしない。取得できなかった項目は null
 

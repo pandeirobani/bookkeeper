@@ -2,6 +2,7 @@
 
 from datetime import date, datetime
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -37,7 +38,8 @@ def test_list_books_returns_all_fields(client: TestClient):
     response = client.get("/api/books")
 
     assert response.status_code == 200
-    assert response.json() == [created]
+    # 登録した本と同じ項目に、読書状態（登録時は未読）を添える
+    assert response.json() == [{**created, "reading_status": "unread"}]
 
 
 def test_list_books_includes_books_without_isbn(client: TestClient):
@@ -64,6 +66,47 @@ def test_list_books_includes_disposed_books(client: TestClient, session: Session
     }
 
     assert disposed_on_by_title == {"手元にある本": None, "手放した本": "2026-10-10"}
+
+
+# --- 読書状態 ---
+
+
+@pytest.mark.parametrize("status", ["unread", "reading", "finished"])
+def test_list_books_returns_reading_status(client: TestClient, status: str):
+    book_id = client.post("/api/books", json={"title": "テスト書籍"}).json()["id"]
+    response = client.put(
+        f"/api/books/{book_id}/reading-record", json={"status": status}
+    )
+    assert response.status_code == 200
+
+    [book] = client.get("/api/books").json()
+
+    assert book["reading_status"] == status
+
+
+def test_list_books_returns_each_books_reading_status(client: TestClient):
+    unread_id = client.post("/api/books", json={"title": "未読の本"}).json()["id"]
+    reading_id = client.post("/api/books", json={"title": "読書中の本"}).json()["id"]
+    client.put(f"/api/books/{reading_id}/reading-record", json={"status": "reading"})
+
+    status_by_id = {
+        book["id"]: book["reading_status"] for book in client.get("/api/books").json()
+    }
+
+    assert status_by_id == {unread_id: "unread", reading_id: "reading"}
+
+
+def test_list_books_includes_book_without_reading_record(
+    client: TestClient, session: Session
+):
+    # APIを通さずに登録した本には読書記録がない
+    session.add(Book(title="読書記録のない本"))
+    session.commit()
+
+    [book] = client.get("/api/books").json()
+
+    assert book["title"] == "読書記録のない本"
+    assert book["reading_status"] is None
 
 
 # --- 並び順 ---

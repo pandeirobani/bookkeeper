@@ -10,7 +10,12 @@ from sqlalchemy.orm import Session
 from app.database import get_session
 from app.errors import api_error
 from app.models import Book, ReadingRecord
-from app.schemas import BookCreate, BookDisposalUpdate, BookResponse
+from app.schemas import (
+    BookCreate,
+    BookDisposalUpdate,
+    BookListItemResponse,
+    BookResponse,
+)
 
 router = APIRouter(prefix="/api/books", tags=["books"])
 
@@ -87,13 +92,22 @@ def _isbn_conflict_as_409(session: Session, isbn: str | None) -> Iterator[None]:
 
 
 @router.get("")
-def list_books(session: SessionDep) -> list[BookResponse]:
-    """書籍を新しく登録した順に全件返す"""
+def list_books(session: SessionDep) -> list[BookListItemResponse]:
+    """書籍を新しく登録した順に、読書状態と一緒に全件返す"""
+    # 読書記録のない本（DBを直接変更した場合）も一覧から消えないよう、外部結合にする。
     # created_at は秒単位なので、同じ秒に登録した本の順番は id で決める
-    books = session.scalars(
-        select(Book).order_by(Book.created_at.desc(), Book.id.desc())
+    rows = session.execute(
+        select(Book, ReadingRecord.status)
+        .outerjoin(ReadingRecord, ReadingRecord.book_id == Book.id)
+        .order_by(Book.created_at.desc(), Book.id.desc())
     )
-    return [BookResponse.model_validate(book) for book in books]
+    return [
+        BookListItemResponse(
+            **BookResponse.model_validate(book).model_dump(),
+            reading_status=reading_status,
+        )
+        for book, reading_status in rows
+    ]
 
 
 @router.get("/{book_id}")
