@@ -70,6 +70,36 @@ npm run dev
 ブラウザで http://localhost:5173 を開く。開発時は Vite のプロキシにより `/api` へのリクエストがバックエンドに転送される。
 画面に「バックエンド：接続OK」と表示されれば疎通できている。
 
+### Docker で起動する
+
+uv や Node.js を入れずに、[Docker](https://www.docker.com/) だけで上の準備と起動をまとめて行える。リポジトリのルートで実行する。
+
+起動する前に、ポート 8000（バックエンド）と 5173（フロントエンド）が使われていないことを確かめる。
+
+```powershell
+# Windows（PowerShell）。何も表示されなければ空いている
+Get-NetTCPConnection -LocalPort 8000,5173 -State Listen -ErrorAction SilentlyContinue
+```
+
+```sh
+# macOS・Linux など。何も表示されなければ空いている
+lsof -nP -iTCP:8000 -iTCP:5173 -sTCP:LISTEN
+```
+
+- 使われていると、`ports are not available: exposing port TCP 127.0.0.1:8000 …` のようなエラーになり、起動しない
+
+```sh
+docker compose up --build
+```
+
+- ブラウザで http://localhost:5173 を開く。止めるときは `Ctrl + C` を押す
+- バックエンドは起動のたびに `alembic upgrade head` を実行し、DBのテーブルを最新の状態にしてから起動する
+- ソースはコンテナにマウントしているので、コードを変えるとすぐ反映される
+- DBは Docker なしで起動したときと同じ `backend/bookkeeper.db` を使う。Docker 版と Docker なしの起動を同時に動かさない
+- `package.json` や `uv.lock` が変わったとき（git pull の後など）は、`docker compose up --build -V` で作り直す
+  - `-V` は、コンテナ内の `node_modules` を新しい `package.json` で入れ直すために付ける
+- テストや整形・静的解析は、下の手順どおりホストで実行する。Docker の中で実行するときは、起動中に別のターミナルで `docker compose exec backend uv run pytest` などとする
+
 ## データの保存場所とバックアップ
 
 - 登録したデータは、SQLite のファイル `backend/bookkeeper.db` 1つに保存される
