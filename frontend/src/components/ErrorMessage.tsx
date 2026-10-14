@@ -16,8 +16,10 @@ function ErrorMessage({ messages }: Props) {
         <p>{messages[0]}</p>
       ) : (
         <ul className={styles.list}>
-          {messages.map((message) => (
-            <li key={message}>{message}</li>
+          {/* 同じ文言のメッセージが並ぶこともあるので、文言ではなく順番を key にする。
+              描画のたびに作り直す一覧で、並べ替えも状態を持つ子要素もないため順番で足りる */}
+          {messages.map((message, index) => (
+            <li key={index}>{message}</li>
           ))}
         </ul>
       )}
