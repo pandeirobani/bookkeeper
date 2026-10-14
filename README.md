@@ -161,7 +161,9 @@ uv run ruff format .
 # フロントエンド
 cd frontend
 npm run lint
+npm run typecheck
 npm run format
 ```
 
 - `ruff format` と `npm run format` は、ファイルを書き換えて整形する
+- `npm run typecheck` は TypeScript の型をチェックする。`npm run lint` やテスト、`npm run dev` では型の誤りを検出しないため、別に実行する

@@ -26,7 +26,7 @@ ISBNから書誌情報を取得する処理以外は、ローカル環境で完�
 - 変更は小さな単位で行う
 - コミット前に整形・静的解析を通す
   - backend：`uv run ruff check .` / `uv run ruff format .`
-  - frontend：`npm run lint` / `npm run format`
+  - frontend：`npm run lint` / `npm run typecheck` / `npm run format`
 
 ## データベース
 - テーブル設計は docs/db-design.md に従うこと
