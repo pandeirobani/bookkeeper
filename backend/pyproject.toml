@@ -1,7 +1,7 @@
 [project]
 name = "backend"
 version = "0.1.0"
-description = "Add your description here"
+description = "BookKeeper のバックエンド（FastAPI）"
 requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.20.0",
