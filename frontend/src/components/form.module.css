@@ -28,7 +28,7 @@
   font: inherit;
   color: var(--text-h);
   background: var(--bg);
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: 4px;
 }
 
@@ -73,7 +73,7 @@
   font: inherit;
   color: var(--text-h);
   background: var(--bg);
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: 4px;
   cursor: pointer;
 }

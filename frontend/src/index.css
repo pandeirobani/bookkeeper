@@ -6,7 +6,10 @@
   --text-h: #08060d;
   --text-muted: #8e8896;
   --bg: #fff;
-  --border: #e5e4e7;
+  /* 区切り線・表の罫線 */
+  --border: #c9c6ce;
+  /* 入力欄・ボタンの枠。押せる・入力できる部品の境目なので、背景とのコントラスト比を 3:1 以上にする */
+  --control-border: #949199;
   --accent: #2f6fdb;
   /* ボタンの背景。白い文字を載せるので、リンクの色（--accent）より濃くする */
   --button-bg: #1d5bbf;
@@ -31,7 +34,8 @@
     --text-h: #f3f4f6;
     --text-muted: #7c808b;
     --bg: #16171d;
-    --border: #2e303a;
+    --border: #454856;
+    --control-border: #6e7383;
     --accent: #7aa7f5;
     /* --accent はダークモードでは明るくするので、ボタンには使わない */
     --button-bg: #2f6fdb;
