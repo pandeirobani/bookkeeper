@@ -14,7 +14,7 @@ vi.mock("../api/isbnLookup.ts", () => ({
 }));
 
 // 登録・編集の送信そのものは BookCreatePage.test.tsx・BookEditPage.test.tsx で確かめる。
-// ここでは ISBNからの取得を確かめる
+// ここでは入力欄の並びと、ISBNからの取得を確かめる
 
 const RESULT: IsbnLookupResult = {
   isbn: "9784480683212",
@@ -62,6 +62,30 @@ function deferLookup() {
   );
   return (result: IsbnLookupResult) => resolve(result);
 }
+
+describe("BookForm の入力欄", () => {
+  it("ISBN を先頭にし、ISBN から取得して埋まる欄をその下に並べる", () => {
+    renderForm();
+
+    expect(screen.getAllByRole("textbox").map((input) => input.getAttribute("name"))).toEqual([
+      "isbn",
+      "title",
+      "author",
+      "publisher",
+      "published_date",
+      "list_price",
+      "cover_image_url",
+    ]);
+  });
+
+  it("ISBN のない本は空欄でよいことを、ISBN欄のヒントで伝える", () => {
+    renderForm();
+
+    expect(screen.getByLabelText("ISBN")).toHaveAccessibleDescription(
+      "ISBN のない本は空欄のままでかまいません。ハイフンや全角数字を含んでもかまいません。ISBN-10 も入力できます",
+    );
+  });
+});
 
 describe("BookForm の ISBNからの取得", () => {
   afterEach(() => {

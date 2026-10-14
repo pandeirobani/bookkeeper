@@ -145,7 +145,7 @@ describe("BookCreatePage", () => {
     await user.click(screen.getByRole("button", { name: "登録する" }));
 
     expect(await screen.findByLabelText("ISBN")).toHaveAccessibleDescription(
-      "ハイフンや全角数字を含んでもかまいません。ISBN-10 も入力できます このISBNの本はすでに登録されています",
+      "ISBN のない本は空欄のままでかまいません。ハイフンや全角数字を含んでもかまいません。ISBN-10 も入力できます このISBNの本はすでに登録されています",
     );
     expect(screen.getByRole("link", { name: "登録済みの本を見る" })).toHaveAttribute(
       "href",

@@ -26,13 +26,14 @@ type FieldConfig = {
   inputMode?: "numeric";
 };
 
+// ISBN を先頭に置く。ISBN から取得すると、その下の欄が埋まり、上から順に確かめられる
 const FIELD_CONFIGS: FieldConfig[] = [
-  { name: "title", label: "書名", required: true },
   {
     name: "isbn",
     label: "ISBN",
-    hint: "ハイフンや全角数字を含んでもかまいません。ISBN-10 も入力できます",
+    hint: "ISBN のない本は空欄のままでかまいません。ハイフンや全角数字を含んでもかまいません。ISBN-10 も入力できます",
   },
+  { name: "title", label: "書名", required: true },
   { name: "author", label: "著者", hint: "複数の著者はカンマ（,）で区切ります" },
   { name: "publisher", label: "出版社" },
   {
