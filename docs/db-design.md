@@ -10,7 +10,7 @@ ISBNからの自動取得、または手動入力で登録する。
 | カラム | 型 | 制約 | 説明 |
 |---|---|---|---|
 | id | INTEGER | PK, AUTOINCREMENT | |
-| isbn | TEXT | UNIQUE | ISBN-13で統一して保存。ISBNのない本はNULL |
+| isbn | TEXT | UNIQUE | ISBN-13で統一して保存。ISBNのない本はNULL。そろえ方は [isbn.md](isbn.md) |
 | title | TEXT | NOT NULL | 200文字まで |
 | author | TEXT | | 複数著者はカンマ区切り。100文字まで |
 | publisher | TEXT | | 100文字まで |

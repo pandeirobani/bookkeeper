@@ -9,7 +9,7 @@ ISBN からの書誌情報の取得以外の機能は、インターネットに
 
 ## 作った動機
 
-家計簿をつける習慣はないものの、何らかの形で支出を管理したいと思っていた。ただ、いきなりすべての支出を管理しようとしても長続きしない。そこで、好きな読書の支出に絞って管理することから始めようと、このアプリを作った。
+自分は家計簿をつける習慣はないものの、何らかの形で支出を管理したいと思っていた。ただ、いきなりすべての支出を管理しようとしても長続きしない。そこで、好きな読書の支出に絞って管理することから始めようと、このアプリを作った。
 
 また、積読の本が何円分眠っているかを金額で示せば、読まずに置いている本を読むきっかけになると考えた。
 
@@ -27,7 +27,7 @@ ISBN からの書誌情報の取得以外の機能は、インターネットに
 
 ## 主な機能
 
-- **本の登録**：ISBN を入れると、書名・著者・出版社・出版日・定価・表紙を [openBD](https://openbd.jp/) から取得して入力欄に入れる。ISBN のない本は手動で登録できる
+- **本の登録**：ISBN を入れると、書誌情報（書名・著者・出版社・出版日・定価・表紙）を [openBD](https://openbd.jp/) から取得して入力欄に入れる。ISBNを使わずに、手動でも書誌情報を入力できる
 - **一覧と検索**：書名・著者のキーワードと、読書状態（未読・読書中・読了）で絞り込める。絞り込みの条件は URL に残る
 - **読書記録**：状態・開始日・読了日・メモを1冊ごとに記録する
 - **購入記録と書籍費の集計**：実際に払った金額を記録し、年ごと・月ごとに集計する。同じ本を何度か買った場合も記録できる
@@ -47,40 +47,64 @@ ISBN からの書誌情報の取得以外の機能は、インターネットに
 - 外部の CSS フレームワーク・フォント・CDN は使わず、ローカルだけで完結させている
 - データ取得のライブラリは使わず、`fetch` の薄いラッパーとカスタムフックで実装している
 
-## すぐに動かす（Docker）
+## Dockerで起動する
 
-[Docker](https://www.docker.com/)（Docker Compose を含む）があれば、ほかに何も入れずに起動できる。リポジトリのルートで実行する。
+[Docker](https://www.docker.com/)（Docker Compose を含む）があれば、ほかに何も入れずに起動できる。コマンドは、リポジトリのルートで実行する。
+
+### 手順1：ポートが空いているか確かめる
+
+ポート 8000（バックエンド）と 5173（フロントエンド）が使われていないことを確かめる。
+
+```powershell
+# Windows（PowerShell）。何も表示されなければ空いている
+Get-NetTCPConnection -LocalPort 8000,5173 -State Listen -ErrorAction SilentlyContinue
+```
+
+```sh
+# macOS・Linux など。何も表示されなければ空いている
+lsof -nP -iTCP:8000 -iTCP:5173 -sTCP:LISTEN
+```
+
+使われていると、手順2で `ports are not available: exposing port TCP 127.0.0.1:8000 …` のようなエラーになり、起動しない。
+
+### 手順2：起動する
 
 ```sh
 docker compose up --build
 ```
 
-ブラウザで http://localhost:5173 を開く。止めるときはターミナルで `Ctrl + C` を押す。
-
-- 起動する前に、ポート 8000（バックエンド）と 5173（フロントエンド）が使われていないことを確かめる。使われていると、`ports are not available: exposing port TCP 127.0.0.1:8000 …` のようなエラーになり、起動しない
-
-  ```powershell
-  # Windows（PowerShell）。何も表示されなければ空いている
-  Get-NetTCPConnection -LocalPort 8000,5173 -State Listen -ErrorAction SilentlyContinue
-  ```
-
-  ```sh
-  # macOS・Linux など。何も表示されなければ空いている
-  lsof -nP -iTCP:8000 -iTCP:5173 -sTCP:LISTEN
-  ```
-
 - バックエンドは起動のたびに DB のテーブルを最新の状態にする（`alembic upgrade head`）。初回は空の DB が `backend/bookkeeper.db` にできる
-- サンプルのデータ（本8冊と、その読書記録・購入記録）を入れて試すときは、起動中に別のターミナルで `docker compose exec backend uv run python -m app.sample_data` を実行する。本が登録されている DB には入れない
+
+### 手順3：ブラウザで開く
+
+http://localhost:5173 を開く。画面の下に「バックエンド：接続OK」と表示されれば起動できている。
+
+### 手順4（任意）：サンプルのデータを入れる
+
+本8冊と、その読書記録・購入記録を入れて試せる。起動したまま、別のターミナルで実行する。
+
+```sh
+docker compose exec backend uv run python -m app.sample_data
+```
+
+- 本が登録されている DB には入れない
+
+### 止める
+
+起動したターミナルで `Ctrl + C` を押す。
+
+### 補足
+
 - ソースはコンテナにマウントしているので、コードを変えるとすぐ反映される
 - `package.json` や `uv.lock` が変わったとき（git pull の後など）は、`docker compose up --build -V` で作り直す。`-V` は、コンテナ内の `node_modules` を入れ直すために付ける
 
 ## 設計で工夫した点
 
-### 外部 API のデータの揺れへの対応
+### 外部 API のデータの揺れや接続できない場合の対応
 
 openBD は本によって値の書き方が違う（著者名の形式、出版日の桁数、税込・税抜の表記など）。15冊分の ISBN で実際の応答を調べて変換の規則を決め、[docs/openbd.md](docs/openbd.md) にまとめた。
 
-- 著者名は「姓, 名, 生年」の形から、日本語なら「夏目漱石」、欧米なら「Dustin Boswell」の形に整える
+- 著者名は「姓, 名, (生年)」の形から、日本語なら「姓名(夏目漱石)」、欧米なら「名 姓(Dustin Boswell)」の形に整える
 - 価格は ONIX の価格コードと値の中身から税込・税抜を判断し、税込の定価にそろえる
 - openBD に接続できない・応答の形が違うときも、画面には「手動で入力してください」と伝え、手動での登録を続けられるようにした
 
@@ -97,7 +121,7 @@ openBD は本によって値の書き方が違う（著者名の形式、出版�
 
 - API のエラーは、ステータスコードによらず `{"detail": [{"type", "loc", "msg"}]}` の形にそろえた。画面はどのエラーでも同じ処理でメッセージを表示でき、入力エラーは該当する入力欄の横に出せる
 - 入力エラーのメッセージは日本語にした（「書名を入力してください」など）
-- ISBN は全角数字やハイフンを含んでもよく、ISBN-10 は ISBN-13 に変換し、チェックディジットで入力ミスを検出する
+- ISBN は全角数字やハイフンを含んでもよく、ISBN-10 は ISBN-13 に変換し、チェックディジットで入力ミスを検出する（[docs/isbn.md](docs/isbn.md)）
 - フロントエンドは API の応答を zod で検証し、バックエンドと形が食い違ったときに気づけるようにした
 
 ### 画面
@@ -118,7 +142,7 @@ docker compose exec backend uv run pytest
 docker compose exec frontend npm test -- --run
 ```
 
-ホストで実行する方法は、下の「ローカルでの開発環境」を参照。
+ホストで実行する方法は、[docs/development.md](docs/development.md) を参照。
 
 ## 開発の進め方
 
@@ -126,158 +150,15 @@ docker compose exec frontend npm test -- --run
 - 仕様や設計の判断は自分が行った
 - 開発は小さな単位で進め、コミット前に自分でコードを読んだ。理解できない実装は、Claude Codeに解説させた上でネット検索・書籍を使い間違いがないか調べた
 
-## ローカルでの開発環境（Docker を使わない場合）
+## ドキュメント
 
-### 前提
-
-- [uv](https://docs.astral.sh/uv/)：Python 3.13 も、uv が自動で用意する
-- [Node.js](https://nodejs.org/) 22.12 以上の偶数の版（22・24 など）と npm
-
-コマンドは、リポジトリのルート（この README.md のあるディレクトリ）から実行する。バックエンドとフロントエンドのコードブロックは、それぞれ別のターミナルで実行するか、ルートに戻ってから実行する。
-
-### 1. 準備（初回とgit pullの後）
-
-依存関係を入れ、DBのテーブルを最新の状態にする。すでに最新なら何もしないので、迷ったら実行してよい。
-
-```sh
-# バックエンド
-cd backend
-uv sync
-uv run alembic upgrade head
-```
-
-```sh
-# フロントエンド
-cd frontend
-npm install
-```
-
-- `uv run alembic upgrade head` は、DB（`backend/bookkeeper.db`）を作り、テーブルを最新の状態にする
-- `uv sync` は省いてもよい。`uv run` が実行のたびに、足りない依存関係を自動で入れる
-- サンプルのデータを入れるときは、`backend` で `uv run python -m app.sample_data` を実行する。本が登録されている DB には入れない
-- `npm install` は省けない。依存関係が足りないまま起動すると、`Failed to resolve import` のエラーになる
-
-### 2. 起動
-
-バックエンドとフロントエンドを別々のターミナルで起動する。止めるときは、それぞれ `Ctrl + C` を押す。
-
-```sh
-# バックエンド（http://localhost:8000）
-cd backend
-uv run uvicorn app.main:app --reload
-```
-
-```sh
-# フロントエンド（http://localhost:5173）
-cd frontend
-npm run dev
-```
-
-ブラウザで http://localhost:5173 を開く。開発時は Vite のプロキシにより `/api` へのリクエストがバックエンドに転送される。
-画面に「バックエンド：接続OK」と表示されれば疎通できている。
-
-- Docker で起動したものと同じ DB（`backend/bookkeeper.db`）とポートを使うので、同時に動かさない
-
-### テスト
-
-準備・起動と同じく、リポジトリのルートから実行する。
-
-```sh
-# バックエンド
-cd backend
-uv run pytest
-```
-
-```sh
-# フロントエンド
-cd frontend
-npm test -- --run
-```
-
-- `npm test` だけだと監視モードで起動し、ファイルを変更するたびにテストを実行し直す。止めるときは `q` か `Ctrl + C` を押す
-
-### 整形・静的解析
-
-コミットの前に通す。テストと同じく、リポジトリのルートから実行する。
-
-```sh
-# バックエンド
-cd backend
-uv run ruff check .
-uv run ruff format .
-```
-
-```sh
-# フロントエンド
-cd frontend
-npm run lint
-npm run typecheck
-npm run format
-```
-
-- `ruff format` と `npm run format` は、ファイルを書き換えて整形する
-- `npm run typecheck` は TypeScript の型をチェックする。`npm run lint` やテスト、`npm run dev` では型の誤りを検出しないため、別に実行する
-
-## データの保存場所とバックアップ
-
-- 登録したデータは、SQLite のファイル `backend/bookkeeper.db` 1つに保存される
-  - git の管理対象外（`.gitignore`）なので、commit や push はされない。消すと元に戻せない
-- バックアップは、バックエンドを止めてから（Docker では `docker compose down`）、このファイルをコピーする
-  - 書き込みの途中でコピーすると、壊れたファイルになることがあるため
-- 戻すときは、バックエンドを止めてファイルを置き換えてから起動する
-  - Docker では起動時にテーブルが最新の状態になる。Docker を使わない場合は、起動の前に `uv run alembic upgrade head` を実行する
-  - バックアップを取った後にテーブルの変更があっても、最新の状態にそろうため
-- Docker を使わない場合は、保存場所を環境変数 `DATABASE_URL` で変えられる（Docker では使わず、いつも `backend/bookkeeper.db` を使う）。`uv run alembic upgrade head` と `uv run uvicorn …` の両方を、同じ値を設定したターミナルで実行する
-
-```sh
-# macOS・Linux など
-export DATABASE_URL=sqlite:////home/me/bookkeeper/bookkeeper.db
-```
-
-```powershell
-# Windows（PowerShell）
-$env:DATABASE_URL = "sqlite:///C:/Users/me/bookkeeper/bookkeeper.db"
-```
-
-## 仕様の詳細
-
-### 書籍の登録
-
-- ISBN は任意。ハイフンや全角数字を含んでもよく、ISBN-10 は ISBN-13 に変換して保存する
-- ISBN の末尾の桁（チェックディジット）で入力ミスを検出し、誤りがあれば登録・保存を受け付けない
-
-### ISBNからの書誌情報の取得
-
-- 登録・編集の画面で ISBN を入力し「ISBNから取得」を押すと、書名・著者・出版社・出版日・定価・表紙画像のURLを入力欄に入れる
-  - 取得元は [openBD](https://openbd.jp/)（無料、APIキー不要）。この操作だけインターネットに接続する
-  - 取得した値は入力欄に入るだけで、「登録する」「保存する」を押すまで保存されない。内容を確認・修正してから保存する
-  - 取得できなかった項目は、入力済みの値をそのまま残す
-- 定価は税込に換算して入れる（openBD の税抜の価格は ×1.1 して端数を切り捨てる）。発売当時の税込価格とは違うことがある
-- 著者は、訳者なども含めて openBD に載っている人を全員入れる。不要な人は入力欄で消す
-- 見つからない本や、openBD に接続できないときは、手動で入力する
-- 変換の決めごとや、openBD を選んだ理由は [docs/openbd.md](docs/openbd.md) を参照
-
-### 書籍費の集計
-
-- ヘッダーのメニューの「書籍費」で開く。年ごとの合計、選んだ年の月ごとの合計、選んだ月の明細を表示する
-- 集計するのは購入記録の金額（実際に支払った金額）。本の定価は使わない
-- 年と月は購入日で決める
-- 手放した本の購入記録も集計に含める
-- 削除した本の購入記録は、本と一緒に消えるので集計からも消える。過去の月の合計も変わる
-- 表示している年と月は URL（`/expenses?year=2026&month=10`）に入るので、再読み込みしたりブックマークしたりしても同じ表示になる
-
-### 積読
-
-- ヘッダーのメニューの「積読」で開く
-- 積読とするのは、次のすべてに当てはまる本
-  - 読書状態が「未読」か「読書中」（読みかけの本も、読み終えるまでは積読とする）
-  - 手元にある（手放した日が記録されていない）
-  - 購入記録が1件以上ある（図書館で借りた本やもらった本は含めない）
-- 同じ本を何度か買った場合は、最初に買ったときの購入日と金額を使う
-  - 手放した後に買い直した本も、最初に買った日から数える
-- 最初に買った日の古い順（長く積んでいる順）に並べる。冊数と、最初に買ったときの金額の合計も表示する
-- 積んでいる日数は、最初に買った日から今日までの日数
-- 読書状態を「読了」にすると、一覧から外れる
+| 文書 | 内容 |
+|---|---|
+| [docs/development.md](docs/development.md) | Docker を使わない開発環境、テスト・静的解析、データの保存場所とバックアップ |
+| [docs/specification.md](docs/specification.md) | 書籍の登録・ISBN からの取得・書籍費・積読の細かい決まり |
+| [docs/db-design.md](docs/db-design.md) | テーブル設計と、設計の判断の理由 |
+| [docs/openbd.md](docs/openbd.md) | openBD の調査記録と、応答の変換の規則 |
+| [docs/isbn.md](docs/isbn.md) | ISBN の扱いとチェックディジット |
 
 ## ライセンス
 
