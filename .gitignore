@@ -227,3 +227,7 @@ dist/
 # ローカルのSQLiteデータベースファイル
 *.db
 *.sqlite3
+# SQLiteが書き込み中に作る一時ファイル（異常終了すると残ることがある）
+*.db-journal
+*.db-wal
+*.db-shm
