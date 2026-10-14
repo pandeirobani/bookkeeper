@@ -64,6 +64,42 @@ describe("DisposalSection", () => {
     expect(onChanged).toHaveBeenCalledTimes(1);
   });
 
+  it("記録した後に本を取り直しても、記録したことを伝え続ける", async () => {
+    vi.mocked(updateDisposal).mockResolvedValue(makeBook({ disposed_on: "2026-10-01" }));
+    const user = userEvent.setup();
+    const { rerender } = render(<DisposalSection book={makeBook()} onChanged={vi.fn()} />);
+
+    const input = screen.getByLabelText("手放した日", { selector: "input" });
+    await user.clear(input);
+    await user.type(input, "2026-10-01");
+    await user.click(screen.getByRole("button", { name: "手放したことを記録する" }));
+    await screen.findByRole("status");
+    rerender(
+      <DisposalSection book={makeBook({ disposed_on: "2026-10-01" })} onChanged={vi.fn()} />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("手放した日を記録しました");
+  });
+
+  it("記録した後に、購入記録の追加などで手元に戻ったら、記録したことの表示を消す", async () => {
+    vi.mocked(updateDisposal).mockResolvedValue(makeBook({ disposed_on: "2026-10-01" }));
+    const user = userEvent.setup();
+    const { rerender } = render(<DisposalSection book={makeBook()} onChanged={vi.fn()} />);
+
+    const input = screen.getByLabelText("手放した日", { selector: "input" });
+    await user.clear(input);
+    await user.type(input, "2026-10-01");
+    await user.click(screen.getByRole("button", { name: "手放したことを記録する" }));
+    await screen.findByRole("status");
+    rerender(
+      <DisposalSection book={makeBook({ disposed_on: "2026-10-01" })} onChanged={vi.fn()} />,
+    );
+    rerender(<DisposalSection book={makeBook({ disposed_on: null })} onChanged={vi.fn()} />);
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "手放したことを記録する" })).toBeInTheDocument();
+  });
+
   it("日付のエラーは入力欄の下に表示し、本は取り直さない", async () => {
     vi.mocked(updateDisposal).mockRejectedValue(
       new ApiError(422, [
