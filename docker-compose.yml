@@ -1,0 +1,28 @@
+# 開発用。docker compose up でバックエンドとフロントエンドを起動し、http://localhost:5173 を開く
+services:
+  backend:
+    build: ./backend
+    volumes:
+      # ソースをマウントして変更をすぐ反映する。DB（backend/bookkeeper.db）もホストと共有する
+      - ./backend:/app
+    environment:
+      # Windows のフォルダをマウントすると変更が通知されないので、ポーリングで検出する
+      WATCHFILES_FORCE_POLLING: "true"
+    ports:
+      # ローカルで完結するアプリなので、この PC からだけ開けるようにする
+      - "127.0.0.1:8000:8000"
+
+  frontend:
+    build: ./frontend
+    volumes:
+      - ./frontend:/app
+      # ホストの node_modules（Windows 用のバイナリを含む）で上書きしないよう、イメージ内のものを使う
+      - /app/node_modules
+    environment:
+      # /api の転送先を backend サービスにする（vite.config.ts）
+      API_PROXY_TARGET: http://backend:8000
+      VITE_USE_POLLING: "true"
+    ports:
+      - "127.0.0.1:5173:5173"
+    depends_on:
+      - backend
