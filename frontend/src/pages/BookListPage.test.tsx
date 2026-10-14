@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { type InitialEntry, MemoryRouter, useLocation } from "react-router";
+import { type InitialEntry, Link, MemoryRouter, useLocation, useNavigate } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type BookListItem, fetchBooks } from "../api/books.ts";
 import { ApiError } from "../api/client.ts";
@@ -29,11 +29,30 @@ function LocationSearch() {
   return <p data-testid="location-search">{useLocation().search}</p>;
 }
 
+/** 一覧画面の外からURLを変える操作。ヘッダーの「本の一覧」のリンクと、ブラウザの「戻る」の代わり */
+function OutsideNavigation() {
+  const navigate = useNavigate();
+  return (
+    <>
+      <Link to="/">ヘッダーの本の一覧</Link>
+      <button type="button" onClick={() => void navigate(-1)}>
+        ブラウザの戻る
+      </button>
+    </>
+  );
+}
+
 function renderPage(initialEntry: InitialEntry = "/") {
+  return renderPageWithHistory([initialEntry]);
+}
+
+/** 履歴を指定して表示する。最後の履歴を開いた状態にする */
+function renderPageWithHistory(initialEntries: InitialEntry[]) {
   render(
-    <MemoryRouter initialEntries={[initialEntry]}>
+    <MemoryRouter initialEntries={initialEntries} initialIndex={initialEntries.length - 1}>
       <BookListPage />
       <LocationSearch />
+      <OutsideNavigation />
     </MemoryRouter>,
   );
   return userEvent.setup();
@@ -369,6 +388,55 @@ describe("BookListPage", () => {
 
       expect(await screen.findByText("全4冊")).toBeInTheDocument();
       expect(bodyTitles()).toHaveLength(4);
+    });
+  });
+
+  describe("URLが一覧画面の外から変わったとき", () => {
+    const BOOKS: BookListItem[] = [
+      { ...BOOK, id: 1, title: "ノルウェイの森", author: "村上春樹", reading_status: "unread" },
+      { ...BOOK, id: 2, title: "海辺のカフカ", author: "村上春樹", reading_status: "reading" },
+      { ...BOOK, id: 3, title: "Python入門", author: null, reading_status: "finished" },
+    ];
+
+    it("絞り込みのないURLに移ると、検索欄とチェックを空にしてすべて表示する", async () => {
+      vi.mocked(fetchBooks).mockResolvedValue(BOOKS);
+      const user = renderPage(`/?q=${encodeURIComponent("村上")}&status=reading`);
+      await screen.findByText("全3冊中1冊");
+
+      await user.click(screen.getByRole("link", { name: "ヘッダーの本の一覧" }));
+
+      expect(screen.getByTestId("location-search")).toBeEmptyDOMElement();
+      expect(screen.getByRole("searchbox")).toHaveValue("");
+      expect(screen.getByRole("checkbox", { name: "読書中" })).not.toBeChecked();
+      expect(bodyTitles()).toHaveLength(3);
+      expect(screen.getByText("全3冊")).toBeInTheDocument();
+    });
+
+    it("「戻る」で絞り込んでいたURLに戻ると、その検索語と読書状態で絞り込む", async () => {
+      vi.mocked(fetchBooks).mockResolvedValue(BOOKS);
+      const user = renderPageWithHistory(["/?q=python&status=finished", "/"]);
+      await screen.findByText("全3冊");
+
+      await user.click(screen.getByRole("button", { name: "ブラウザの戻る" }));
+
+      expect(screen.getByRole("searchbox")).toHaveValue("python");
+      expect(screen.getByRole("checkbox", { name: "読了" })).toBeChecked();
+      expect(bodyTitles()).toEqual(["Python入門"]);
+      expect(screen.getByText("全3冊中1冊")).toBeInTheDocument();
+    });
+
+    it("一覧画面の中での入力は、URLから読み直さずに入力した値のままにする", async () => {
+      vi.mocked(fetchBooks).mockResolvedValue(BOOKS);
+      const user = renderPage("/?q=python");
+      await screen.findByText("全3冊中1冊");
+
+      await user.clear(screen.getByRole("searchbox"));
+      await user.type(screen.getByRole("searchbox"), "村上");
+      await user.click(screen.getByRole("checkbox", { name: "未読" }));
+
+      expect(screen.getByRole("searchbox")).toHaveValue("村上");
+      expect(screen.getByRole("checkbox", { name: "未読" })).toBeChecked();
+      expect(bodyTitles()).toEqual(["ノルウェイの森"]);
     });
   });
 

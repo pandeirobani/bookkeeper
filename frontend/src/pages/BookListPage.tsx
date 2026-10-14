@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import {
+  Link,
+  NavigationType,
+  useLocation,
+  useNavigationType,
+  useSearchParams,
+} from "react-router";
 import { type BookListItem, fetchBooks } from "../api/books.ts";
 import {
   READING_STATUSES,
@@ -62,6 +68,20 @@ function SearchableBookTable({ books }: { books: BookListItem[] }) {
   const [statuses, setStatuses] = useState(() =>
     parseReadingStatuses(searchParams.getAll("status")),
   );
+
+  // この画面の中での書き換えは replace なので、それ以外（ヘッダーの「本の一覧」のリンクや
+  // ブラウザの「戻る」）で URL が変わったときだけ、検索欄とチェックボックスを URL に合わせ直す
+  const location = useLocation();
+  const navigationType = useNavigationType();
+  const [syncedLocationKey, setSyncedLocationKey] = useState(location.key);
+  if (location.key !== syncedLocationKey) {
+    setSyncedLocationKey(location.key);
+    if (navigationType !== NavigationType.Replace) {
+      setQuery(searchParams.get("q") ?? "");
+      setStatuses(parseReadingStatuses(searchParams.getAll("status")));
+    }
+  }
+
   const isFiltering = query.trim() !== "" || statuses.length > 0;
   const matchedBooks = isFiltering
     ? books.filter(
