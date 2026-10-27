@@ -177,6 +177,10 @@ docker compose exec frontend npm test -- --run
 | [docs/openbd.md](docs/openbd.md) | openBD の調査記録と、応答の変換の規則 |
 | [docs/isbn.md](docs/isbn.md) | ISBN の扱いとチェックディジット |
 
+## 今後の予定
+
+- 継続して使うモチベーションになるような要素が欠けていると感じている。読書量が可視化されるような仕組みを作りたい（Githubの草のようなイメージ）
+
 ## ライセンス
 
 MIT License。[LICENSE](LICENSE) を参照。
