@@ -82,23 +82,43 @@ Get-NetTCPConnection -LocalPort 8000,5173 -State Listen -ErrorAction SilentlyCon
 lsof -nP -iTCP:8000 -iTCP:5173 -sTCP:LISTEN
 ```
 
-使われていると、手順2で `ports are not available: exposing port TCP 127.0.0.1:8000 …` のようなエラーになり、起動しない。
+使われていると、手順2で `ports are not available: exposing port TCP 127.0.0.1:8000 …` のようなエラーになり、起動しない。Windows の起動スクリプトは、この確認も自動で行う。
 
 ### 手順2：起動する
+
+#### Windows：スクリプトで起動する
+
+エクスプローラーで `start.cmd` をダブルクリックする。Docker Desktop の起動、BookKeeper の起動、ブラウザで開くところまでを自動で行う。
+
+ブラウザを指定するときは、PowerShell で `start.ps1` に `-Browser` を付けて実行する。指定しなければ、既定のブラウザで開く。
+
+```powershell
+.\start.ps1                    # 既定のブラウザで開く
+.\start.ps1 -Browser msedge    # Edge で開く（chrome・firefox なども指定できる）
+```
+
+- `.ps1` の実行が禁止されている環境では、`powershell -ExecutionPolicy Bypass -File .\start.ps1 -Browser msedge` のように実行する。`start.cmd` は、この形で `start.ps1` を呼んでいる
+- バックグラウンドで動かすので、ターミナルを閉じても止まらない。ログは `docker compose logs -f` で見られる
+
+#### スクリプトを使わずに起動する
+
+macOS・Linux の場合や、ログを見ながら動かしたい場合は、次のコマンドで起動する。
 
 ```sh
 docker compose up --build
 ```
 
+起動したら、http://localhost:5173 を開く。
+
+#### 起動できたかの確かめ方
+
+画面の下に「バックエンド：接続OK」と表示されれば起動できている。
+
 - バックエンドは起動のたびに DB のテーブルを最新の状態にする（`alembic upgrade head`）。初回は空の DB が `backend/bookkeeper.db` にできる
 
-### 手順3：ブラウザで開く
+### 手順3（任意）：サンプルのデータを入れる
 
-http://localhost:5173 を開く。画面の下に「バックエンド：接続OK」と表示されれば起動できている。
-
-### 手順4（任意）：サンプルのデータを入れる
-
-本8冊と、その読書記録・購入記録を入れて試せる。起動したまま、別のターミナルで実行する。
+本8冊と、その読書記録・購入記録を入れて試せる。起動したまま、ターミナルで実行する（`docker compose up` で起動した場合は、別のターミナルで実行する）。
 
 ```sh
 docker compose exec backend uv run python -m app.sample_data
@@ -108,12 +128,15 @@ docker compose exec backend uv run python -m app.sample_data
 
 ### 止める
 
-起動したターミナルで `Ctrl + C` を押す。
+- スクリプトで起動した場合：`stop.cmd` をダブルクリックする（PowerShell では `.\stop.ps1`）。コンテナは消さずに残すので、次の起動が速い
+- `docker compose up` で起動した場合：起動したターミナルで `Ctrl + C` を押す
+
+どちらの方法で止めても、DB（`backend/bookkeeper.db`）は消えない。Docker Desktop は動いたままになるので、使わないときは Docker Desktop から終了する。
 
 ### 補足
 
 - ソースはコンテナにマウントしているので、コードを変えるとすぐ反映される
-- `package.json` や `uv.lock` が変わったとき（git pull の後など）は、`docker compose up --build -V` で作り直す。`-V` は、コンテナ内の `node_modules` を入れ直すために付ける
+- `package.json` や `uv.lock` が変わったとき（git pull の後など）は、`docker compose up --build -V` で作り直す。`-V` は、コンテナ内の `node_modules` を入れ直すために付ける。起動スクリプトは `-V` を付けないので、このときは一度だけスクリプトを使わずに起動する
 
 ## 設計で工夫した点
 
