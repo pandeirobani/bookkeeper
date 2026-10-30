@@ -1,8 +1,11 @@
-"""本を検索する処理。MCP サーバーから使う
+"""本を検索する処理と、本1冊の詳しい情報を取り出す処理。MCP サーバーから使う
 
 画面の検索はブラウザの中で全件から絞り込んでいる（frontend/src/utils/search.ts）。
 MCP では AI が全件を受け取らずに済むよう、サーバーで絞り込む。
-一致のルールは画面と同じにする
+一致のルールは画面と同じにする。
+
+結果のモデルは API のモデル（app/schemas.py）とは別に作る。
+モデルの docstring と Field の説明は AI に届くので、AI 向けに書く
 """
 
 import unicodedata
@@ -13,7 +16,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Book, ReadingRecord
+from app.models import Book, Purchase, ReadingRecord
 
 ReadingStatus = Literal["unread", "reading", "finished"]
 
@@ -90,3 +93,111 @@ def search_books(
         and (not statuses or reading_status in statuses)
     ]
     return BookSearchResult(total=len(matched), books=matched[:limit])
+
+
+class BookNotFoundError(Exception):
+    """指定した id の本がない"""
+
+    def __init__(self, book_id: int) -> None:
+        super().__init__(f"id が {book_id} の本はありません")
+        self.book_id = book_id
+
+
+class ReadingDetail(BaseModel):
+    """本の読書記録"""
+
+    status: ReadingStatus = Field(
+        description="読書状態。unread は未読、reading は読書中、finished は読了"
+    )
+    started_at: date | None = Field(description="読み始めた日。記録がなければ null")
+    finished_at: date | None = Field(description="読み終えた日。記録がなければ null")
+    memo: str | None = Field(description="読書のメモ（感想など）")
+
+
+class PurchaseDetail(BaseModel):
+    """本の購入記録1件"""
+
+    purchased_on: date = Field(description="購入日")
+    amount: int = Field(description="実際に支払った金額（税込・円）")
+    store: str | None = Field(description="購入した店")
+    memo: str | None = Field(description="購入のメモ")
+
+
+class BookDetail(BaseModel):
+    """本1冊の詳しい情報。書誌情報・読書記録・購入記録をまとめたもの"""
+
+    id: int = Field(description="本の ID")
+    isbn: str | None = Field(description="ISBN-13。ISBN のない本は null")
+    title: str = Field(description="書名")
+    author: str | None = Field(description="著者。複数の著者はカンマ区切り")
+    publisher: str | None = Field(description="出版社")
+    published_date: str | None = Field(
+        description="出版日。取得元によって形式がまちまちな文字列"
+    )
+    list_price: int | None = Field(
+        description=(
+            "定価（税込・円）。実際に支払った金額ではないので、"
+            "書籍費には purchases の amount を使う"
+        )
+    )
+    disposed_on: date | None = Field(
+        description="売った・譲ったなどで手放した日。手元にある本は null"
+    )
+    reading: ReadingDetail | None = Field(description="読書記録。記録のない本は null")
+    purchases: list[PurchaseDetail] = Field(
+        description=(
+            "購入記録。購入日の古い順。同じ本を買い直すと複数になる。"
+            "図書館で借りた本やもらった本は空"
+        )
+    )
+    purchase_total: int = Field(
+        description="purchases の amount の合計（円）。購入記録がなければ 0"
+    )
+
+
+def get_book_detail(session: Session, book_id: int) -> BookDetail:
+    """本1冊の書誌情報・読書記録・購入記録をまとめて返す。
+
+    本がなければ BookNotFoundError を投げる
+    """
+    book = session.get(Book, book_id)
+    if book is None:
+        raise BookNotFoundError(book_id)
+    record = session.scalar(
+        select(ReadingRecord).where(ReadingRecord.book_id == book_id)
+    )
+    purchases = session.scalars(
+        select(Purchase)
+        .where(Purchase.book_id == book_id)
+        .order_by(Purchase.purchased_on, Purchase.id)
+    ).all()
+    return BookDetail(
+        id=book.id,
+        isbn=book.isbn,
+        title=book.title,
+        author=book.author,
+        publisher=book.publisher,
+        published_date=book.published_date,
+        list_price=book.list_price,
+        disposed_on=book.disposed_on,
+        reading=(
+            None
+            if record is None
+            else ReadingDetail(
+                status=record.status,
+                started_at=record.started_at,
+                finished_at=record.finished_at,
+                memo=record.memo,
+            )
+        ),
+        purchases=[
+            PurchaseDetail(
+                purchased_on=purchase.purchased_on,
+                amount=purchase.amount,
+                store=purchase.store,
+                memo=purchase.memo,
+            )
+            for purchase in purchases
+        ],
+        purchase_total=sum(purchase.amount for purchase in purchases),
+    )
