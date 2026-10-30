@@ -134,3 +134,33 @@ async def test_search_books_over_limit(
 
     assert result.is_error
     assert "less than or equal to 100" in result.content[0].text
+
+
+@pytest.mark.anyio
+async def test_get_book_detail_return_book(
+    mcp_client: Client,
+    session: Session,
+) -> None:
+    book = Book(title="取得する本", author="著者")
+    session.add(book)
+    session.flush()
+    session.add(ReadingRecord(book_id=book.id, status="unread"))
+    session.add(Purchase(book_id=book.id, purchased_on=date(2026, 1, 15), amount=1980))
+    session.commit()
+
+    result = await mcp_client.call_tool("get_book_detail", {"book_id": book.id})
+
+    assert not result.is_error
+    assert result.structured_content["id"] == book.id
+    assert result.structured_content["title"] == book.title
+    assert result.structured_content["author"] == book.author
+    assert result.structured_content["reading"]["status"] == "unread"
+    assert result.structured_content["purchase_total"] == 1980
+
+
+@pytest.mark.anyio
+async def test_get_book_detail_book_id_below_1(mcp_client: Client) -> None:
+    result = await mcp_client.call_tool("get_book_detail", {"book_id": 0})
+
+    assert result.is_error
+    assert "greater than or equal to 1" in result.content[0].text

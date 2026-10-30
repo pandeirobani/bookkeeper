@@ -189,6 +189,9 @@ def list_tsundoku() -> list[TsundokuResponse]:
 - `structuredContent` は、必ず JSON のオブジェクト（`{...}`）でなければならない。そのため、文字列やリストを返すツールは、SDK が `{"result": ...}` に包む
 - Pydantic のモデルを返すツールは、JSON にした時点でオブジェクトなので包まれない。`search_books` の `BookSearchResult` は `{"total": ..., "books": [...]}` のまま返り、`outputSchema` でも `properties` のすぐ下に `total` と `books` が並んだ。最初は `{"result": {...}}` になると予想していたが、包むのは決まりを満たさない値をオブジェクトに変えるためだけだった
 - テストは `structured_content` を辞書どうしで比べる。`content` の文字列で比べると、空白や項目の順番の違いで不一致になる
+- モデルの中にモデルがあると（`BookDetail` の `reading` と `purchases`）、項目そのものは `properties` に並ぶが、中のモデルの形は `$defs` に分けて書かれ、`$ref` で参照される。`null` もありうる `reading` は `"anyOf": [{"$ref": "#/$defs/ReadingDetail"}, {"type": "null"}]`、リストの `purchases` は `"items": {"$ref": "#/$defs/PurchaseDetail"}` になった
+- 戻り値の型ヒントには、外側のモデル（`BookDetail`）だけを書けばよい。SDK が中のモデルまでたどるので、`ReadingDetail` などを import する必要はない。逆に、戻り値を `-> None` と書くと、`outputSchema` に結果の形が載らず、AI は項目もその説明も知ることができない
+- AI は数字の計算を間違えることがあるので、合計などはサーバーで計算して渡す。本の詳細には、購入金額の合計 `purchase_total` を入れた
 
 ### 引数の説明と制約
 
@@ -210,6 +213,9 @@ limit: Annotated[int, Field(ge=1, le=100, description="返す本の最大件数"
 
 - Python には `str?` という書き方はない。`None` もありうることは `str | None` で書く。`str?` と書くと、`?` の所で読み取りが止まり、エディタには「かっこが閉じていない」と表示された
 - 制約は 3 か所で効く。AI は `inputSchema` を読んで範囲内の値を選ぶ。Inspector も `maximum` を読んで、101 を入力させなかった。それでも範囲外の値が届いたら、SDK が関数を実行する前にエラーを返す。クライアントが制約を守るとは限らないので、サーバーの確認は省けない
+- `Annotated` には、型と、付け足す情報（`Field(...)`）の 2 つ以上が要る。`Annotated[int]` だけだと `TypeError` になる
+- 制約に引っかかったときのエラーの文は、`Error executing tool get_book_detail: 1 validation error for get_book_detailArguments` の前置きのあとに、引数の名前と `Input should be greater than or equal to 1` が続き、最後に pydantic の版を含む URL が付く。テストでは理由を表す `greater than or equal to 1` だけを確かめる。前置きは、どんな理由で引っかかっても同じ文になるので、制約が効いたかどうかを確かめられない。URL の版は、pydantic を更新すると変わる
+- Inspector は `minimum` を読んで範囲外の値を入力させないので、範囲外の値でのエラーの文は、制約を見ずにそのまま送る SDK のクライアント（テスト）で確かめた。`pytest -s` を付けると、テストの中の `print` が表示される
 - `enum` で選べる値は伝わるが、どれが何を意味するかは伝わらない。`statuses` に「finished=読了」と説明を付けたので、「読了した本を探して」と頼むと、Claude は `statuses: ["finished"]` で呼んだ
 
 ### AI に見えるもの
@@ -307,3 +313,13 @@ claude mcp add --scope project bookkeeper -- docker compose exec -T backend uv r
 - `search_books` のツールを作った。引数は `keyword`・`statuses`・`limit`。説明文には、`total` が `books` の件数より多いときは、残りがあることを伝え、キーワードで絞るか尋ねるように書いた
 - テストは、キーワードがサービスまで届くことと、`limit` に 101 を渡すとエラーになることを確かめた。検索のルールそのものは [backend/tests/test_search_books.py](../backend/tests/test_search_books.py) で確かめている
 - Claude Code で「本を 2 冊だけ見せて」と頼むと、`limit: 2` で呼び、残りがあることと、キーワードで絞るかを伝えてきた。説明文のとおりに動いた
+
+### ステップ 4-2：本の詳細のツール
+
+- [backend/app/services/books.py](../backend/app/services/books.py) に、本 1 冊の書誌情報・読書記録・購入記録をまとめて返す `get_book_detail` を作った。本がなければ `BookNotFoundError` を投げる
+- 結果のモデル（`BookDetail`・`ReadingDetail`・`PurchaseDetail`）は、API のモデルとは別に AI 向けに作った。API のモデルの説明は開発者向けなので、AI に余計な説明が届くため。表紙の URL、登録日時、各記録の id は、AI が答えに使うことがほとんどないので入れなかった
+- `list_price` の説明に「実際に支払った金額ではないので、書籍費には purchases の amount を使う」と書いた。定価と支払額を AI が取り違えないようにするため
+- `get_book_detail` のツールを作った。引数は `book_id`（1 以上）。`id` という名前は Python の `id()` を隠すうえ、AI から見て何の id かわかりにくい
+- 本の id は、検索・積読の一覧・書籍費の明細など、いくつものツールの結果に入っている。説明文では「id はほかのツールの結果に含まれる」とまとめて書き、id がわからないとき（書名で頼まれたとき）の手段として `search_books` の名前だけを出した。ツールの名前を全部並べると、ツールを足すたびに説明文を直す必要が出る。検索の結果の説明（`BookSearchItem`）にも「詳しい情報は本の詳細のツールで取る」と書いてあり、検索 → 詳細の道筋を両方から示している
+- テストでは、本の詳細が返ることと、`book_id` に 0 を渡すとエラーになることを確かめた。詳細のテストでは、`title` のほかに `reading` の `status` と `purchase_total` を確かめ、3 つの記録がまとめて届くことを確かめた
+- 存在しない id（999）で呼ぶと、`is_error` が真で、`content` には `Error executing tool get_book_detail` だけが返った。サービスの例外の文（「id が 999 の本はありません」）は AI に届かない。SDK は、予期しない例外の中身を隠し、前置きだけを返す。これはステップ 5 で扱う

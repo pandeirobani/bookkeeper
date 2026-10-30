@@ -9,7 +9,7 @@ from app.database import SessionLocal
 from app.schemas import TsundokuResponse
 from app.services import books as books_service
 from app.services import tsundoku as tsundoku_service
-from app.services.books import BookSearchResult, ReadingStatus
+from app.services.books import BookDetail, BookSearchResult, ReadingStatus
 
 server = MCPServer("BookKeeper")
 
@@ -58,6 +58,19 @@ def search_books(
     """
     with SessionLocal() as session:
         return books_service.search_books(session, keyword, statuses, limit)
+
+
+@server.tool()
+def get_book_detail(
+    book_id: Annotated[int, Field(ge=1, description="探す本のID")],
+) -> BookDetail:
+    """本のIDから書誌情報・読書記録・購入記録を取得する。
+
+    本のIDは他のツールの結果に含まれる。IDがわからないときは、
+    先に書名や著者からsearch_booksで探してidを調べる。
+    """
+    with SessionLocal() as session:
+        return books_service.get_book_detail(session, book_id)
 
 
 if __name__ == "__main__":
