@@ -90,3 +90,47 @@ async def test_all_tools_have_docstring(
     assert tools.tools
     for tool in tools.tools:
         assert tool.description, f"{tool.name} に説明文がない"
+
+
+@pytest.mark.anyio
+async def test_search_books_filters_by_keyword(
+    mcp_client: Client,
+    session: Session,
+) -> None:
+    book = Book(title="検索する本", author="著者")
+    session.add(book)
+    session.flush()
+    session.add(ReadingRecord(book_id=book.id, status="unread"))
+
+    book2 = Book(title="検索しない本", author="著者")
+    session.add(book2)
+    session.flush()
+    session.add(ReadingRecord(book_id=book2.id, status="unread"))
+
+    session.commit()
+
+    result = await mcp_client.call_tool("search_books", {"keyword": "検索する"})
+
+    assert not result.is_error
+    assert result.structured_content == {
+        "total": 1,
+        "books": [
+            {
+                "id": book.id,
+                "title": book.title,
+                "author": book.author,
+                "reading_status": "unread",
+                "disposed_on": None,
+            }
+        ],
+    }
+
+
+@pytest.mark.anyio
+async def test_search_books_over_limit(
+    mcp_client: Client,
+) -> None:
+    result = await mcp_client.call_tool("search_books", {"limit": 101})
+
+    assert result.is_error
+    assert "less than or equal to 100" in result.content[0].text

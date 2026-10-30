@@ -179,6 +179,53 @@ def list_tsundoku() -> list[TsundokuResponse]:
 - `content` には、同じ結果が JSON の文字列として入る。API の応答と同じ形になるのは、同じサービスの関数と同じモデルを使っているため
 - MCP Inspector の一覧では、説明文の 1 行目しか見えなかった。SDK のクライアントで確かめると、全文が `description` に入っていた（改行は `\n`）
 
+ツールの結果は、同じ中身を 2 つの形で返す。
+
+| 欄 | 形 | 誰のためか |
+|---|---|---|
+| `content` | 文字列（テキスト） | AI が読む |
+| `structuredContent` | JSON のオブジェクト | プログラムが使う。形は `outputSchema` で約束されている |
+
+- `structuredContent` は、必ず JSON のオブジェクト（`{...}`）でなければならない。そのため、文字列やリストを返すツールは、SDK が `{"result": ...}` に包む
+- Pydantic のモデルを返すツールは、JSON にした時点でオブジェクトなので包まれない。`search_books` の `BookSearchResult` は `{"total": ..., "books": [...]}` のまま返り、`outputSchema` でも `properties` のすぐ下に `total` と `books` が並んだ。最初は `{"result": {...}}` になると予想していたが、包むのは決まりを満たさない値をオブジェクトに変えるためだけだった
+- テストは `structured_content` を辞書どうしで比べる。`content` の文字列で比べると、空白や項目の順番の違いで不一致になる
+
+### 引数の説明と制約
+
+引数ごとの説明と制約は、型ヒントに `Annotated` と `Field` で付ける。ツール全体の説明は docstring に書く。
+
+```python
+limit: Annotated[int, Field(ge=1, le=100, description="返す本の最大件数")] = 20
+```
+
+`inputSchema` は JSON Schema という共通の書き方なので、Pydantic の名前が置き換わる。
+
+| Python（Pydantic） | `inputSchema`（JSON Schema） |
+|---|---|
+| `ge=1`・`le=100` | `"minimum": 1`・`"maximum": 100` |
+| 既定値 `= 20` | `"default": 20` |
+| `description="..."` | `"description": "..."` |
+| `str \| None` | `"anyOf": [{"type": "string"}, {"type": "null"}]` |
+| `Literal["unread", "reading", "finished"]` | `"enum": [...]` |
+
+- Python には `str?` という書き方はない。`None` もありうることは `str | None` で書く。`str?` と書くと、`?` の所で読み取りが止まり、エディタには「かっこが閉じていない」と表示された
+- 制約は 3 か所で効く。AI は `inputSchema` を読んで範囲内の値を選ぶ。Inspector も `maximum` を読んで、101 を入力させなかった。それでも範囲外の値が届いたら、SDK が関数を実行する前にエラーを返す。クライアントが制約を守るとは限らないので、サーバーの確認は省けない
+- `enum` で選べる値は伝わるが、どれが何を意味するかは伝わらない。`statuses` に「finished=読了」と説明を付けたので、「読了した本を探して」と頼むと、Claude は `statuses: ["finished"]` で呼んだ
+
+### AI に見えるもの
+
+AI が知ることができるのは、サーバーが送ったメッセージの中身と、自分が渡した引数だけ。
+
+| 時点 | メッセージ | 中身 |
+|---|---|---|
+| 呼ぶ前 | `tools/list` の応答 | ツールの名前、説明文、`inputSchema`、`outputSchema`（モデルの docstring と `Field` の説明を含む） |
+| 呼んだあと | `tools/call` の応答 | `content`（ホストによっては `structuredContent` も） |
+
+- Python のコード、`#` のコメント、サービスの関数の docstring、結果に入れなかった DB の中身は届かない
+- 説明文には、AI が見える値で条件を書く。`limit` で切ったあとの結果しか届かないので、「結果が limit より多い場合」は AI には判断できない。「`total` が `books` の件数より多い場合」と書いた。`limit` と件数が同じでも、ちょうどその数だけ当てはまったのかもしれないので、残りがあるかは `total` でしかわからない
+- 確かめ方は 2 つ。Inspector で、サーバーが何を送ったかを見る。Claude Code で実際に頼んで、AI がどう受け取り、どう使ったかを見る
+- `inputSchema` はファイルには書かれていない。サーバーが動いている間に SDK が型ヒントから作り、`tools/list` の応答に載せる
+
 ### テストの書き方
 
 - SDK のクライアントは非同期で動くので、テストも `async def` で書き、`@pytest.mark.anyio` を付ける。anyio は SDK と一緒に入る
@@ -190,6 +237,9 @@ def list_tsundoku() -> list[TsundokuResponse]:
 - ひな形の `...` は、書きかけの印ではなく `Ellipsis` という本物の値。埋め忘れると、DB に書き込む時点で `type 'ellipsis' is not supported` になる
 - ループの中の `assert` は、ループが 0 回だと何も確かめずに通る。`if` で対象を探す書き方も同じ。ループの前に、対象があることを `assert` で確かめる
 - MCP のテストで確かめるのは、ツールがサービスに正しくつながり、結果が正しい形で届くか。積読の決まり（どの本が入るか、並び順）は API のテストが同じサービスを通して確かめているので、MCP のテストでは繰り返さない
+- `call_tool` は `call_tool(ツールの名前, 引数の辞書)` の形で呼ぶ。`call_tool("limit", 101)` と書くと、「`limit` というツールを引数 `101` で呼ぶ」意味になる
+- エラーのテストは、`is_error` だけでなく、エラーの理由まで確かめる。`is_error` だけだと、ツールの名前を間違えたときの「そんなツールはない」というエラーでも通ってしまう。`limit` に 101 を渡すテストでは、`result.content[0].text` に `less than or equal to 100` が含まれることも確かめた
+- テストのデータは、確かめることに関係するものだけ入れる。検索は購入記録を見ないので、検索のテストに `Purchase` は入れない。入れると、読む人が「購入記録が検索に関係するのか」と迷う
 
 ### ホストの許可
 
@@ -248,3 +298,12 @@ claude mcp add --scope project bookkeeper -- docker compose exec -T backend uv r
   - 切り出したあとも、積読の API のテストはそのまま通った。API の動きは変わっていない
 - `list_tsundoku` のツールを作った。引数はなく、戻り値は API と同じ `list[TsundokuResponse]`
 - [backend/tests/test_mcp_server.py](../backend/tests/test_mcp_server.py) にテストを書いた。本がないときの空のリスト、積読の本が 1 冊あるときの結果、全部のツールに説明文があること
+
+### ステップ 4-1：本の検索のツール
+
+- 画面の検索は、ブラウザの中で全件から絞り込んでいる。MCP では AI が全件を受け取らずに済むよう、サーバーで絞り込む処理を [backend/app/services/books.py](../backend/app/services/books.py) の `search_books` に新しく作った。一致のルール（全角と半角・大文字と小文字を区別しない、空白で区切った語をすべて含む）は画面と同じにした
+- 結果は軽い形（id・書名・著者・読書状態・手放した日）にした。詳しい情報は、id を使って本の詳細のツール（4-2）で取る
+- 件数に上限（`limit`、既定値 20、1〜100）を設け、当てはまった本の数 `total` を一緒に返す。AI は `total` と `books` の件数を比べて、残りがあることに気づける
+- `search_books` のツールを作った。引数は `keyword`・`statuses`・`limit`。説明文には、`total` が `books` の件数より多いときは、残りがあることを伝え、キーワードで絞るか尋ねるように書いた
+- テストは、キーワードがサービスまで届くことと、`limit` に 101 を渡すとエラーになることを確かめた。検索のルールそのものは [backend/tests/test_search_books.py](../backend/tests/test_search_books.py) で確かめている
+- Claude Code で「本を 2 冊だけ見せて」と頼むと、`limit: 2` で呼び、残りがあることと、キーワードで絞るかを伝えてきた。説明文のとおりに動いた

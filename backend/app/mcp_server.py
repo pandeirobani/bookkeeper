@@ -1,10 +1,15 @@
 """AIのアプリ(Claudeなど)からBookKeeperのデータを読むためのMCPサーバー。stdioで起動する"""
 
+from typing import Annotated
+
 from mcp.server.mcpserver import MCPServer
+from pydantic import Field
 
 from app.database import SessionLocal
 from app.schemas import TsundokuResponse
+from app.services import books as books_service
 from app.services import tsundoku as tsundoku_service
+from app.services.books import BookSearchResult, ReadingStatus
 
 server = MCPServer("BookKeeper")
 
@@ -27,6 +32,32 @@ def list_tsundoku() -> list[TsundokuResponse]:
     """
     with SessionLocal() as session:
         return tsundoku_service.list_tsundoku(session)
+
+
+@server.tool()
+def search_books(
+    keyword: Annotated[
+        str | None,
+        Field(
+            description="書名・著者から検索する。空白で区切ると、全ての語句を含む本に絞る"
+        ),
+    ] = None,
+    statuses: Annotated[
+        list[ReadingStatus] | None,
+        Field(description="読書の状態。unread=未読、reading=読書中、finished=読了"),
+    ] = None,
+    limit: Annotated[int, Field(ge=1, le=100, description="返す本の最大件数")] = 20,
+) -> BookSearchResult:
+    """書名・著者のキーワードと読書の状態で書籍を検索し、新しく登録した順に返す。
+
+    キーワードは空白(全角も含む)で区切り、すべての語がそれぞれ書名か著者の
+    どちらかに含まれる本に一致する。空や空白だけのキーワードは、すべての本に一致する。
+    読書状態は、指定したどれかに当てはまる本に一致する。指定しなければ絞り込まない。
+    totalがbooksの件数より多い場合、まだ当てはまる本があることを使用者に伝え、
+    さらにキーワードで絞るか尋ねること
+    """
+    with SessionLocal() as session:
+        return books_service.search_books(session, keyword, statuses, limit)
 
 
 if __name__ == "__main__":
