@@ -88,6 +88,46 @@ Python の SDK（`mcp` パッケージ）は、2.x で大きく変わった。�
 | `from mcp.server.fastmcp import FastMCP` | `from mcp.server.mcpserver import MCPServer` |
 | 結果の `isError`・`structuredContent` | 結果の `is_error`・`structured_content`（Python の属性名がスネークケースになった。JSON の上では今までどおり `isError`） |
 
+### stdio と標準出力
+
+プログラムには、最初から 3 本の通り道がある。`print` は、何も指定しなければ標準出力に書く。
+
+| 通り道 | 番号 | 向き | 主に使うもの |
+|---|---|---|---|
+| 標準入力（stdin） | 0 | 外 → プログラム | `input()` |
+| 標準出力（stdout） | 1 | プログラム → 外 | `print()` |
+| 標準エラー出力（stderr） | 2 | プログラム → 外 | エラーメッセージ、`logging`（既定の設定） |
+
+stdio の MCP サーバーでは、標準入力と標準出力が、ホストとの会話（JSON-RPC）専用の通り道になる。標準エラー出力は会話に使わないので、ログを書いてよい。
+
+```
+ホスト ──（JSON-RPC の要求）──→ 0：標準入力 ─→ サーバー
+ホスト ←─（JSON-RPC の応答）── 1：標準出力 ←─ サーバー
+画面やログ ←───────────────── 2：標準エラー出力 ←─ サーバー
+```
+
+`print` を 2 か所に入れて、何が起きるかを確かめた。
+
+| `print` の場所 | 起きたこと |
+|---|---|
+| ツールの中 | 標準エラー出力に出た。通信には影響しない。SDK 2.x は、`server.run()` の間、標準出力に書かれたものを標準エラー出力へ逃がしている |
+| `server.run()` の前 | 通信路（標準出力）に混ざった。Python の SDK のクライアントは「JSON として読めない」というエラーを記録して、その行を捨て、通信を続けた |
+
+- 今回はクライアントが寛容だったが、クライアントによってはつながらなくなりうる。しかも原因が見えにくい
+- そのため、MCP サーバーでログを出すときは、`print` ではなく `logging`（標準エラー出力に書く）を使う
+
+### ホストの許可
+
+Claude Code では、許可が 2 段階ある。
+
+| 段階 | 何を許可するか | 記録される場所 |
+|---|---|---|
+| サーバーの許可 | `.mcp.json` のサーバーを起動してよいか。clone したリポジトリの `.mcp.json` で、勝手にコマンドが実行されないようにするため | `.claude/settings.local.json` の `enabledMcpjsonServers`（個人の設定なので git に入れない） |
+| ツールの許可 | このツールを、この引数で呼んでよいか | 権限のモードと、許可のルールで決まる |
+
+- Claude Code は、ツールを `mcp__<設定の名前>__<ツールの名前>` という名前で扱う（例：`mcp__bookkeeper__ping`）。この名前は、許可のルールにも使う
+- 「つながっているか確かめて」と頼むと、`ping` という名前を出さなくても、Claude は `ping` を選んだ。説明文を読んで判断している
+
 ## 実装の記録
 
 ### ステップ 1：最小の MCP サーバー
@@ -100,3 +140,28 @@ npx @modelcontextprotocol/inspector@2.11.0 uv --directory backend run python -m 
 ```
 
 - Inspector は、つないだときに起動したサーバーのプロセスを使い続ける。コードを変えたら、つなぎ直す（Disconnect → Connect）と反映される
+
+### ステップ 2：Claude Code につなぐ
+
+- stdio のサーバーを、backend のコンテナの中で起動する。Claude Code は `docker compose exec` を起動し、docker が標準入出力をコンテナの中のプロセスに中継する
+
+```
+Claude Code（ホスト）
+   │ 起動：docker compose exec -T backend uv run python -m app.mcp_server
+   ↓
+docker（ホストの PC で動く）── 標準入出力を、そのまま中継する ──┐
+                                                                  ↓
+                                    backend のコンテナ：python -m app.mcp_server
+```
+
+- コマンドの `backend` は、`docker-compose.yml` のサービスの名前（フォルダの `backend/` ではない）。`exec` は動いているコンテナを使うので、先に BookKeeper を起動しておく必要がある
+- `-T` は、疑似端末（TTY）を割り当てない指定。端末を割り当てると、改行の変換などが JSON のやりとりを乱すおそれがある。今回は `-T` がなくても動いたが、確実にするために付ける
+- 次のコマンドで登録した。`--scope project` を付けると、設定がリポジトリの [.mcp.json](../.mcp.json) に保存され、clone した人も同じ設定を使える
+
+```sh
+claude mcp add --scope project bookkeeper -- docker compose exec -T backend uv run python -m app.mcp_server
+```
+
+- Windows の PowerShell では、`--` を `'--'` と引用符で囲む。`claude` は `claude.ps1`（PowerShell のスクリプト）として起動し、PowerShell はスクリプトに `--` を渡さずに取り除く。`--` が消えると、`claude` が `-T` を自分のオプションと取り違えて `error: unknown option '-T'` になる
+- 設定の名前（`bookkeeper`）と、サーバーが名乗る名前（`MCPServer("BookKeeper")`）は別のもの。設定の名前はツールの名前（`mcp__bookkeeper__ping`）に使われるので、ほかのサーバーにならって小文字にした
+- Python の SDK のクライアントから同じコマンドで起動すると、docker が compose のプラグインを見つけられずに失敗した。SDK は安全のために、子プロセスに渡す環境変数を最小限に絞るため。Claude Code では起きなかったので、Claude Code は環境変数をそのまま渡していると考えられる
