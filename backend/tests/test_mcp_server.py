@@ -1,0 +1,92 @@
+"""MCP サーバー（app/mcp_server.py）のテスト"""
+
+from collections.abc import AsyncIterator
+from datetime import date
+
+import pytest
+from mcp import Client
+from sqlalchemy import Engine
+from sqlalchemy.orm import Session, sessionmaker
+
+from app import mcp_server
+from app.models import Book, Purchase, ReadingRecord
+
+
+@pytest.fixture
+def anyio_backend() -> str:
+    """非同期のテストを asyncio で動かす（anyio の pytest プラグインの設定）"""
+    return "asyncio"
+
+
+@pytest.fixture
+async def mcp_client(
+    engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> AsyncIterator[Client]:
+    """DBを一時DBに差し替えて、MCP サーバーにつないだクライアント。
+
+    サーバーを子プロセスで起動せず、同じプロセスの中でつなぐ。
+    ツールは mcp_server.SessionLocal でセッションを開くので、それを差し替える
+    """
+    monkeypatch.setattr(mcp_server, "SessionLocal", sessionmaker(bind=engine))
+    async with Client(mcp_server.server) as client:
+        yield client
+
+
+@pytest.mark.anyio
+async def test_ping_returns_pong(mcp_client: Client) -> None:
+    result = await mcp_client.call_tool("ping", {})
+
+    assert not result.is_error
+    assert result.structured_content == {"result": "pong"}
+
+
+@pytest.mark.anyio
+async def test_list_tsundoku_returns_empty_list_without_books(
+    mcp_client: Client,
+) -> None:
+    result = await mcp_client.call_tool("list_tsundoku", {})
+
+    assert not result.is_error
+    assert result.structured_content == {"result": []}
+
+
+@pytest.mark.anyio
+async def test_list_tsundoku_returns_book(
+    mcp_client: Client,
+    session: Session,
+) -> None:
+    # 準備：積読の本を 1 冊、一時 DB に入れる
+    book = Book(title="積んでいる本", author="著者")
+    session.add(book)
+    session.flush()  # DB に送って、book.id を決める（まだ確定はしていない）
+    session.add(ReadingRecord(book_id=book.id, status="unread"))
+    session.add(Purchase(book_id=book.id, purchased_on=date(2026, 1, 15), amount=1980))
+    session.commit()  # 確定する。これでツールの窓口からも見えるようになる
+
+    # 実行
+    result = await mcp_client.call_tool("list_tsundoku", {})
+
+    # 確認
+    assert not result.is_error
+    assert result.structured_content == {
+        "result": [
+            {
+                "book": {"id": book.id, "title": book.title, "author": book.author},
+                "status": "unread",
+                "first_purchased_on": "2026-01-15",
+                "first_purchase_amount": 1980,
+                "purchase_count": 1,
+            }
+        ]
+    }
+
+
+@pytest.mark.anyio
+async def test_all_tools_have_docstring(
+    mcp_client: Client,
+) -> None:
+    tools = await mcp_client.list_tools()
+
+    assert tools.tools
+    for tool in tools.tools:
+        assert tool.description, f"{tool.name} に説明文がない"

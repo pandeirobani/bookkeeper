@@ -116,6 +116,81 @@ stdio の MCP サーバーでは、標準入力と標準出力が、ホストと
 - 今回はクライアントが寛容だったが、クライアントによってはつながらなくなりうる。しかも原因が見えにくい
 - そのため、MCP サーバーでログを出すときは、`print` ではなく `logging`（標準エラー出力に書く）を使う
 
+### DB のセッション
+
+セッションは、DB とやりとりするための窓口。読むときも書くときも、DB とのやりとりは必ずセッションを通す。
+
+```python
+with SessionLocal() as session:      # 窓口を開く
+    session.add(Book(title="..."))    # 「この本を登録したい」と伝える
+    session.commit()                  # 確定する。ここで初めて DB に書かれる
+                                      # with を抜けると、窓口が閉じる
+```
+
+- `SessionLocal` は窓口を作る機械で、`SessionLocal()` と呼ぶたびに新しい窓口が 1 つできる
+- ツールでは、`with SessionLocal() as session:` を**関数の中**に書く。ツールが呼ばれるたびに窓口を開き、終わったら閉じる
+- `with` を関数の外（モジュールの最上位）に書くと、`mcp_server.py` を読み込んだときに 1 回だけ実行され、すぐ閉じてしまう。関数の引数に `session` を書くと、AI から「`session` という文字列を渡す必要があるツール」に見えてしまう。実際に `inputSchema` に `{"session": {"type": "string"}}` が現れ、引数なしで呼ぶとエラーになった
+
+### docstring の位置
+
+docstring になるのは、関数の本体の**最初に書いた文字列**だけ。
+
+```python
+@server.tool()
+def list_tsundoku() -> list[TsundokuResponse]:
+    with SessionLocal() as session:
+        """積読の本を…"""   # ← with の中に入ると、ただの「何もしない文字列」になる
+        return ...
+```
+
+この書き方では、AI に見える説明文が空になった。結果を確かめるテストは通ってしまうので、全部のツールに説明文があることを確かめるテストを足した。
+
+### 説明文の書き方
+
+説明文は、自然な日本語で、**定義をはっきり**書く。AI は、このアプリでの言葉の意味（たとえば「積読」）を知らない。
+
+- 何が入り、何が入らないか（読書中の本は？ 手放した本は？）
+- 並び順
+- 結果の項目の意味。項目に触れるときは、結果に出てくる名前（`first_purchased_on` など）を使う。DB の列名は AI に見えないので使わない
+
+説明文の誤りは、そのまま AI の誤った答えになる。最初の版では `first_purchase_amount` を「最初に購入した冊数」と書いていた。このままだと、AI が「1980 冊買った」と答えかねなかった。
+
+### 戻り値の形（outputSchema）
+
+`list[TsundokuResponse]` を返すツールの `outputSchema` は、次の形になった。
+
+```json
+{
+  "$defs": {
+    "BookSummaryResponse": { "description": "一覧や明細に添える本の情報。…", ... },
+    "TsundokuResponse": {
+      "properties": { "book": { "$ref": "#/$defs/BookSummaryResponse" }, ... }
+    }
+  },
+  "properties": {
+    "result": { "type": "array", "items": { "$ref": "#/$defs/TsundokuResponse" } }
+  }
+}
+```
+
+- `$defs` に Pydantic のモデルごとの形をまとめ、`$ref` で参照する。同じ形を何度も書かないための JSON Schema のしくみ
+- リストを返すツールでも、`{"result": ...}` に包まれ、その中が配列になる
+- **Pydantic のモデルの docstring も、AI に届く。** `BookSummaryResponse` の「本の詳細画面へのリンクと表示に使う」は、画面を作る開発者向けの説明で、AI には関係がない。一方、項目に付けた `#` のコメントは届かない
+- `content` には、同じ結果が JSON の文字列として入る。API の応答と同じ形になるのは、同じサービスの関数と同じモデルを使っているため
+- MCP Inspector の一覧では、説明文の 1 行目しか見えなかった。SDK のクライアントで確かめると、全文が `description` に入っていた（改行は `\n`）
+
+### テストの書き方
+
+- SDK のクライアントは非同期で動くので、テストも `async def` で書き、`@pytest.mark.anyio` を付ける。anyio は SDK と一緒に入る
+- `Client(mcp_server.server)` で、サーバーを子プロセスで起動せずに、同じプロセスの中でつなぐ。`initialize` → `tools/list` → `tools/call` のやりとりは本物と同じ
+- フィクスチャは、テスト関数の引数に名前を書くだけで、pytest が準備して渡す
+- `client.call_tool(名前, 引数)`・`result.structured_content`・`result.is_error` などの名前は、MCP の通信の項目（`tools/call`・`structuredContent`・`isError`）をスネークケースにしたもの
+- `call_tool` の 2 つめは、ツールに渡す引数（辞書）。引数のないツールには `{}` を渡す
+- テストでは、`mcp_server.SessionLocal` を一時 DB 向けのものに差し替える。`from app.database import SessionLocal` は、`SessionLocal` という名前を `mcp_server` のモジュールにコピーするので、`mcp_server` の中の名前だけを付け替えればよい。`monkeypatch.setattr` は、差し替える名前が見つからないとエラーにするので、書き方を間違えても黙って本物の DB を使うことはない
+- ひな形の `...` は、書きかけの印ではなく `Ellipsis` という本物の値。埋め忘れると、DB に書き込む時点で `type 'ellipsis' is not supported` になる
+- ループの中の `assert` は、ループが 0 回だと何も確かめずに通る。`if` で対象を探す書き方も同じ。ループの前に、対象があることを `assert` で確かめる
+- MCP のテストで確かめるのは、ツールがサービスに正しくつながり、結果が正しい形で届くか。積読の決まり（どの本が入るか、並び順）は API のテストが同じサービスを通して確かめているので、MCP のテストでは繰り返さない
+
 ### ホストの許可
 
 Claude Code では、許可が 2 段階ある。
@@ -165,3 +240,11 @@ claude mcp add --scope project bookkeeper -- docker compose exec -T backend uv r
 - Windows の PowerShell では、`--` を `'--'` と引用符で囲む。`claude` は `claude.ps1`（PowerShell のスクリプト）として起動し、PowerShell はスクリプトに `--` を渡さずに取り除く。`--` が消えると、`claude` が `-T` を自分のオプションと取り違えて `error: unknown option '-T'` になる
 - 設定の名前（`bookkeeper`）と、サーバーが名乗る名前（`MCPServer("BookKeeper")`）は別のもの。設定の名前はツールの名前（`mcp__bookkeeper__ping`）に使われるので、ほかのサーバーにならって小文字にした
 - Python の SDK のクライアントから同じコマンドで起動すると、docker が compose のプラグインを見つけられずに失敗した。SDK は安全のために、子プロセスに渡す環境変数を最小限に絞るため。Claude Code では起きなかったので、Claude Code は環境変数をそのまま渡していると考えられる
+
+### ステップ 3：積読の一覧のツール
+
+- 積読を取り出す処理は、API のルーターに直接書かれていた。これを [backend/app/services/tsundoku.py](../backend/app/services/tsundoku.py) の `list_tsundoku(session)` に切り出し、API のルーターと MCP のツールの両方から呼ぶようにした
+  - ルーターの関数に `@server.tool()` を付けない理由：引数の `session`（FastAPI が渡す DB のセッション）が AI に見えてしまう。ルーターの docstring は開発者向けで、AI 向けの説明文とは書く内容が違う。Web API と MCP が互いに縛り合う
+  - 切り出したあとも、積読の API のテストはそのまま通った。API の動きは変わっていない
+- `list_tsundoku` のツールを作った。引数はなく、戻り値は API と同じ `list[TsundokuResponse]`
+- [backend/tests/test_mcp_server.py](../backend/tests/test_mcp_server.py) にテストを書いた。本がないときの空のリスト、積読の本が 1 冊あるときの結果、全部のツールに説明文があること
