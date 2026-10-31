@@ -159,6 +159,16 @@ async def test_get_book_detail_return_book(
 
 
 @pytest.mark.anyio
+async def test_get_book_detail_book_not_found(
+    mcp_client: Client,
+) -> None:
+    result = await mcp_client.call_tool("get_book_detail", {"book_id": 999})
+
+    assert result.is_error
+    assert "id が 999 の本はありません" in result.content[0].text
+
+
+@pytest.mark.anyio
 async def test_get_book_detail_book_id_below_1(mcp_client: Client) -> None:
     result = await mcp_client.call_tool("get_book_detail", {"book_id": 0})
 

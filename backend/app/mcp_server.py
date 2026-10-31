@@ -3,6 +3,7 @@
 from typing import Annotated
 
 from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import Field
 
 from app.database import SessionLocal
@@ -15,7 +16,12 @@ from app.schemas import (
 from app.services import books as books_service
 from app.services import expenses as expenses_service
 from app.services import tsundoku as tsundoku_service
-from app.services.books import BookDetail, BookSearchResult, ReadingStatus
+from app.services.books import (
+    BookDetail,
+    BookNotFoundError,
+    BookSearchResult,
+    ReadingStatus,
+)
 
 server = MCPServer("BookKeeper")
 
@@ -81,7 +87,16 @@ def get_book_detail(
     先に書名や著者からsearch_booksで探してidを調べる。
     """
     with SessionLocal() as session:
-        return books_service.get_book_detail(session, book_id)
+        try:
+            return books_service.get_book_detail(session, book_id)
+        except BookNotFoundError as e:
+            raise ToolError(
+                f"{e}。"
+                "渡したIDが正しいか調べなおしてください。"
+                "本のIDと購入記録のIDを混同している可能性や、"
+                "推測したIDを使っている可能性を考えてください。"
+                "書名や著者がわかれば、search_booksで見つけられるかもしれません。"
+            ) from e
 
 
 @server.tool()
