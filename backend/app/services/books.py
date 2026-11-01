@@ -201,3 +201,63 @@ def get_book_detail(session: Session, book_id: int) -> BookDetail:
         ],
         purchase_total=sum(purchase.amount for purchase in purchases),
     )
+
+
+class ReadingRecordNotFoundError(Exception):
+    """本に読書記録がない。
+
+    API から登録した本には必ずあるので、DB を直接変更した場合だけ
+    """
+
+    def __init__(self, book_id: int) -> None:
+        super().__init__(f"id が {book_id} の本には読書記録がありません")
+        self.book_id = book_id
+
+
+class InvalidReadingDatesError(ValueError):
+    """読み終えた日が、読み始めた日より前になっている"""
+
+    def __init__(self, started_at: date, finished_at: date) -> None:
+        super().__init__(
+            f"読み終えた日（{finished_at}）が、"
+            f"読み始めた日（{started_at}）より前になっています"
+        )
+
+
+def update_reading_status(
+    session: Session,
+    book_id: int,
+    status: ReadingStatus,
+    started_at: date | None,
+    finished_at: date | None,
+) -> BookDetail:
+    """本の読書状態と、読み始めた日・読み終えた日を変え、変えたあとの本の詳細を返す。
+
+    日付が None なら今の値のまま変えない。読書のメモは変えない。
+    API の PUT（丸ごと置き換え）と違い、AI が送り忘れた項目で記録が消えないようにする。
+    日付の自動入力はしない（API と同じ）。
+    読み終えた日が読み始めた日より前になるなら、何も変えずに
+    InvalidReadingDatesError を投げる。省いた日付は今の値で比べる
+    """
+    if session.get(Book, book_id) is None:
+        raise BookNotFoundError(book_id)
+    record = session.scalar(
+        select(ReadingRecord).where(ReadingRecord.book_id == book_id)
+    )
+    if record is None:
+        raise ReadingRecordNotFoundError(book_id)
+
+    new_started_at = record.started_at if started_at is None else started_at
+    new_finished_at = record.finished_at if finished_at is None else finished_at
+    if (
+        new_started_at is not None
+        and new_finished_at is not None
+        and new_finished_at < new_started_at
+    ):
+        raise InvalidReadingDatesError(new_started_at, new_finished_at)
+
+    record.status = status
+    record.started_at = new_started_at
+    record.finished_at = new_finished_at
+    session.commit()
+    return get_book_detail(session, book_id)
