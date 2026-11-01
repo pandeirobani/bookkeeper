@@ -1,9 +1,11 @@
 """AIのアプリ(Claudeなど)からBookKeeperのデータを読むためのMCPサーバー。stdioで起動する"""
 
+from datetime import date
 from typing import Annotated
 
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
+from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from app.database import SessionLocal
@@ -20,6 +22,8 @@ from app.services.books import (
     BookDetail,
     BookNotFoundError,
     BookSearchResult,
+    InvalidReadingDatesError,
+    ReadingRecordNotFoundError,
     ReadingStatus,
 )
 
@@ -31,13 +35,13 @@ Year = Annotated[int, Field(ge=1, le=9999, description="西暦の年（例：202
 Month = Annotated[int, Field(ge=1, le=12, description="月（1〜12）")]
 
 
-@server.tool()
+@server.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
 def ping() -> str:
     """サーバーにつながっているか確かめる"""
     return "pong"
 
 
-@server.tool()
+@server.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
 def list_tsundoku() -> list[TsundokuResponse]:
     """積読の本を長く積んでいる順（最初の購入日の古い順）に返す。
 
@@ -51,7 +55,7 @@ def list_tsundoku() -> list[TsundokuResponse]:
         return tsundoku_service.list_tsundoku(session)
 
 
-@server.tool()
+@server.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
 def search_books(
     keyword: Annotated[
         str | None,
@@ -77,7 +81,7 @@ def search_books(
         return books_service.search_books(session, keyword, statuses, limit)
 
 
-@server.tool()
+@server.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
 def get_book_detail(
     book_id: Annotated[int, Field(ge=1, description="探す本のID")],
 ) -> BookDetail:
@@ -99,7 +103,59 @@ def get_book_detail(
             ) from e
 
 
-@server.tool()
+@server.tool(
+    annotations=ToolAnnotations(
+        destructive_hint=True, idempotent_hint=True, open_world_hint=False
+    )
+)
+def update_reading_status(
+    book_id: Annotated[int, Field(ge=1, description="読書記録を更新する本のID")],
+    status: Annotated[
+        ReadingStatus,
+        Field(description="読書の状態。unread=未読、reading=読書中、finished=読了"),
+    ],
+    started_at: Annotated[
+        date | None, Field(description="読書開始した日付。省くと今の値のまま")
+    ] = None,
+    finished_at: Annotated[
+        date | None, Field(description="読了した日付。省くと今の値のまま")
+    ] = None,
+) -> BookDetail:
+    """本の読書状態と、読み始めた日・読み終えた日を変え、変えた後の本の詳細を返す。
+
+    日付がない場合は、自動で入れない。「今日読み終わった」と言われたら、
+    今日の日付を渡すこと。読み始めた日と読み終えた日を混同しないように注意。
+    本のIDは他のツールの結果に含まれる。IDがわからないときは、
+    先に書名や著者からsearch_booksで探してidを調べる。
+    読書記録のメモは変えない。
+    """
+    with SessionLocal() as session:
+        try:
+            return books_service.update_reading_status(
+                session, book_id, status, started_at, finished_at
+            )
+        except BookNotFoundError as e:
+            raise ToolError(
+                f"{e}。"
+                "渡したIDが正しいか調べなおしてください。"
+                "本のIDと購入記録のIDを混同している可能性や、"
+                "推測したIDを使っている可能性を考えてください。"
+                "書名や著者がわかれば、search_booksで見つけられるかもしれません。"
+            ) from e
+        except ReadingRecordNotFoundError as e:
+            raise ToolError(
+                f"{e}。"
+                "システム上、登録した本には必ず読書記録があるので、"
+                "DBが直接変更された可能性があります。"
+            ) from e
+        except InvalidReadingDatesError as e:
+            raise ToolError(
+                f"{e}。"
+                "ユーザーが読み始めた日か読み終えた日を間違えていないか確認してください。"
+            ) from e
+
+
+@server.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
 def list_yearly_expenses() -> list[YearlyExpenseResponse]:
     """書籍費を年ごとに集計し、合計金額と購入記録の件数を新しい年から順に返す。
 
@@ -113,7 +169,7 @@ def list_yearly_expenses() -> list[YearlyExpenseResponse]:
         return expenses_service.list_yearly_expenses(session)
 
 
-@server.tool()
+@server.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
 def get_year_expenses(year: Year) -> YearExpenseDetailResponse:
     """1年分の書籍費の合計金額と購入記録の件数を、月ごとの内訳と一緒に返す。
 
@@ -127,7 +183,7 @@ def get_year_expenses(year: Year) -> YearExpenseDetailResponse:
         return expenses_service.get_year_expenses(session, year)
 
 
-@server.tool()
+@server.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
 def get_month_expenses(year: Year, month: Month) -> MonthExpenseDetailResponse:
     """1か月分の書籍費の合計金額と購入記録の件数を、購入記録の明細と一緒に返す。
 

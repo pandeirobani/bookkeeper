@@ -187,6 +187,83 @@ def add_purchase(session: Session, purchased_on: date, amount: int) -> Book:
 
 
 @pytest.mark.anyio
+async def test_update_reading_status_reading_success(
+    session: Session, mcp_client: Client
+) -> None:
+    book = Book(title="更新する本", author="著者")
+    session.add(book)
+    session.flush()
+    session.add(ReadingRecord(book_id=book.id, status="unread"))
+    session.commit()
+
+    result = await mcp_client.call_tool(
+        "update_reading_status",
+        {"book_id": book.id, "status": "reading", "started_at": "2026-11-01"},
+    )
+
+    assert not result.is_error
+    assert result.structured_content["reading"]["status"] == "reading"
+    assert result.structured_content["reading"]["started_at"] == "2026-11-01"
+
+
+@pytest.mark.anyio
+async def test_update_reading_status_finished_success(
+    session: Session, mcp_client: Client
+) -> None:
+    book = Book(title="更新する本", author="著者")
+    session.add(book)
+    session.flush()
+    session.add(
+        ReadingRecord(book_id=book.id, started_at=date(2026, 11, 1), status="reading")
+    )
+    session.commit()
+
+    result = await mcp_client.call_tool(
+        "update_reading_status",
+        {"book_id": book.id, "status": "finished", "finished_at": "2026-11-08"},
+    )
+
+    assert not result.is_error
+    assert result.structured_content["reading"]["status"] == "finished"
+    assert result.structured_content["reading"]["finished_at"] == "2026-11-08"
+
+
+@pytest.mark.anyio
+async def test_update_reading_status_invalid_reading_date(
+    session: Session, mcp_client: Client
+) -> None:
+    book = Book(title="更新する本", author="著者")
+    session.add(book)
+    session.flush()
+    session.add(
+        ReadingRecord(book_id=book.id, started_at=date(2026, 11, 1), status="reading")
+    )
+    session.commit()
+
+    result = await mcp_client.call_tool(
+        "update_reading_status",
+        {"book_id": book.id, "status": "finished", "finished_at": "2026-10-01"},
+    )
+
+    assert result.is_error
+    assert "読み終えた日（2026-10-01）が、" in result.content[0].text
+
+
+@pytest.mark.anyio
+async def test_update_read_only_hint_annotations(
+    mcp_client: Client,
+) -> None:
+    tools = await mcp_client.list_tools()
+
+    assert tools.tools
+    for tool in tools.tools:
+        if tool.name == "update_reading_status":
+            assert not tool.annotations.read_only_hint
+        else:
+            assert tool.annotations.read_only_hint
+
+
+@pytest.mark.anyio
 async def test_list_yearly_expenses_returns_totals_by_year(
     mcp_client: Client,
     session: Session,
