@@ -231,3 +231,5 @@ dist/
 *.db-journal
 *.db-wal
 *.db-shm
+# DB のバックアップ（start.ps1 が起動のたびに取る）
+backend/backups/

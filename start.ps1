@@ -100,6 +100,12 @@ if (-not $ready) {
     exit 1
 }
 
+# DB のバックアップを取る。取れなくても BookKeeper は使えるので、知らせるだけで先へ進む
+docker compose exec -T backend uv run python -m app.backup
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "DB のバックアップを取れませんでした。docker compose logs でログを確かめてください。"
+}
+
 # 4. ブラウザで開く
 if ($Browser) {
     try {
