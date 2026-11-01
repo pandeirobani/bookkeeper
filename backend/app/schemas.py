@@ -266,61 +266,63 @@ class ReadingRecordResponse(BaseModel):
 class YearlyExpenseResponse(BaseModel):
     """1年分の書籍費の合計"""
 
-    year: int
-    # その年の購入記録の金額（purchases.amount）の合計（円）
-    total: int
-    # その年の購入記録の件数
-    count: int
+    year: int = Field(description="年（購入日の年）")
+    total: int = Field(
+        description="その年の購入記録の金額の合計（税込・円）。本の定価ではない"
+    )
+    count: int = Field(description="その年の購入記録の件数（冊数ではない）")
 
 
 class MonthlyExpenseResponse(BaseModel):
     """1か月分の書籍費の合計"""
 
-    month: int
-    total: int
-    count: int
+    month: int = Field(description="月（1〜12）")
+    total: int = Field(description="その月の購入記録の金額の合計（税込・円）")
+    count: int = Field(description="その月の購入記録の件数")
 
 
 class YearExpenseDetailResponse(BaseModel):
     """1年分の書籍費の合計と、その月ごとの内訳"""
 
-    year: int
-    total: int
-    count: int
-    # 1月から12月まで、購入のない月も含めて必ず12か月分
-    months: list[MonthlyExpenseResponse]
+    year: int = Field(description="年（購入日の年）")
+    total: int = Field(description="その年の購入記録の金額の合計（税込・円）")
+    count: int = Field(description="その年の購入記録の件数")
+    months: list[MonthlyExpenseResponse] = Field(
+        description="1月から12月まで、購入のない月も0で含めて必ず12か月分"
+    )
 
 
 class BookSummaryResponse(BaseModel):
-    """一覧や明細に添える本の情報。本の詳細画面へのリンクと表示に使う"""
+    """一覧や明細に添える本の情報。詳しい情報は id で本の詳細を取る"""
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    title: str
-    author: str | None
+    id: int = Field(description="本の ID")
+    title: str = Field(description="書名")
+    author: str | None = Field(description="著者。複数の著者はカンマ区切り")
 
 
 class ExpensePurchaseResponse(BaseModel):
     """書籍費の明細の1行（購入記録1件）"""
 
-    id: int
-    purchased_on: date
-    amount: int
-    store: str | None
-    memo: str | None
-    book: BookSummaryResponse
+    id: int = Field(description="購入記録の ID（本の ID ではない）")
+    purchased_on: date = Field(description="購入日")
+    amount: int = Field(description="実際に支払った金額（税込・円）")
+    store: str | None = Field(description="購入した店")
+    memo: str | None = Field(description="購入のメモ")
+    book: BookSummaryResponse = Field(description="買った本")
 
 
 class MonthExpenseDetailResponse(BaseModel):
     """1か月分の書籍費の合計と、その明細"""
 
-    year: int
-    month: int
-    total: int
-    count: int
-    # 購入日の古い順。同じ日の中は記録した順
-    purchases: list[ExpensePurchaseResponse]
+    year: int = Field(description="年")
+    month: int = Field(description="月（1〜12）")
+    total: int = Field(description="その月の購入記録の金額の合計（税込・円）")
+    count: int = Field(description="その月の購入記録の件数")
+    purchases: list[ExpensePurchaseResponse] = Field(
+        description="購入記録の明細。購入日の古い順。同じ日の中は記録した順"
+    )
 
 
 class TsundokuResponse(BaseModel):

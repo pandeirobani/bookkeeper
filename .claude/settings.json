@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__bookkeeper__ping",
+      "mcp__bookkeeper__list_tsundoku",
+      "mcp__bookkeeper__search_books",
+      "mcp__bookkeeper__get_book_detail",
+      "mcp__bookkeeper__list_yearly_expenses",
+      "mcp__bookkeeper__get_year_expenses",
+      "mcp__bookkeeper__get_month_expenses"
+    ],
+    "ask": [
+      "mcp__bookkeeper__update_reading_status"
+    ]
+  }
+}
