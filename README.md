@@ -88,7 +88,7 @@ lsof -nP -iTCP:8000 -iTCP:5173 -sTCP:LISTEN
 
 #### Windows：スクリプトで起動する
 
-エクスプローラーで `start.cmd` をダブルクリックする。Docker Desktop の起動、BookKeeper の起動、ブラウザで開くところまでを自動で行う。
+エクスプローラーで `start.cmd` をダブルクリックする。Docker Desktop の起動、BookKeeper の起動、DB のバックアップ、ブラウザで開くところまでを自動で行う。
 
 ブラウザを指定するときは、PowerShell で `start.ps1` に `-Browser` を付けて実行する。指定しなければ、既定のブラウザで開く。
 
@@ -132,6 +132,26 @@ docker compose exec backend uv run python -m app.sample_data
 - `docker compose up` で起動した場合：起動したターミナルで `Ctrl + C` を押す
 
 どちらの方法で止めても、DB（`backend/bookkeeper.db`）は消えない。Docker Desktop は動いたままになるので、使わないときは Docker Desktop から終了する。
+
+### DB のバックアップ
+
+起動スクリプトは、起動のたびに DB の複製を `backend/backups/` に取る。新しいものから 10 個だけ残し、それより古いものは消す。ファイル名の時刻は UTC（例：`bookkeeper-20261101-050607Z.db`）。
+
+スクリプトを使わずに起動した場合は、起動したまま、次のコマンドで取れる。
+
+```sh
+docker compose exec backend uv run python -m app.backup
+```
+
+- 誤って本を削除したときや、AI などのツールが意図しない変更をしたときに、元に戻すためのもの
+- アプリが DB を使っている最中でも、SQLite のバックアップの機能で、壊れていない複製を取る
+
+戻すときは、次の手順で行う。戻すと、バックアップを取ったあとの変更は消える。
+
+1. BookKeeper を止める（上の「止める」を参照）
+2. 念のため、今の `backend/bookkeeper.db` を別の名前でコピーしておく
+3. 戻したいバックアップを `backend/bookkeeper.db` という名前で上書きコピーする
+4. BookKeeper を起動する
 
 ### 補足
 
